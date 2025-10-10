@@ -16,28 +16,23 @@ class LoginScreen extends HookConsumerWidget {
 
     Future<void> handleLogin() async {
       if (usernameController.text.isEmpty || passwordController.text.isEmpty) {
-        if (context.mounted) {
-          errorMessage.value = 'Please enter username and password';
-        }
+        errorMessage.value = 'Please enter username and password';
         return;
       }
 
-      if (context.mounted) {
-        isLoading.value = true;
-        errorMessage.value = null;
-      }
+      isLoading.value = true;
+      errorMessage.value = null;
 
       try {
         await ref.read(authStateProvider.notifier).login(
               usernameController.text,
               passwordController.text,
             );
+        // Successful login - widget will be unmounted by router
       } catch (e) {
+        // Only update UI if still mounted (login failed)
         if (context.mounted) {
           errorMessage.value = e.toString();
-        }
-      } finally {
-        if (context.mounted) {
           isLoading.value = false;
         }
       }

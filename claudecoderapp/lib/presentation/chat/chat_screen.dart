@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import '../../core/providers/providers.dart';
 import '../../data/models/chat_message.dart';
@@ -37,31 +38,92 @@ class ChatScreen extends HookConsumerWidget {
 
           // Listen to WebSocket messages
           webSocketService.messages.listen((wsMessage) {
-            if (wsMessage.type == 'assistant-message' ||
-                wsMessage.type == 'user-message') {
-              final chatMessage = ChatMessage(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                role: wsMessage.type == 'user-message' ? 'user' : 'assistant',
-                content: wsMessage.content ?? '',
-                timestamp: DateTime.now().toIso8601String(),
-              );
-              messages.value = [...messages.value, chatMessage];
+            // Handle different message types from the backend
+            if (wsMessage.type == 'claude-response') {
+              // Extract text content from Claude's response structure
+              String content = '';
 
-              // Auto-scroll to bottom
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (scrollController.hasClients) {
-                  scrollController.animateTo(
-                    scrollController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  );
+              // Claude CLI sends: {type: 'claude-response', data: {type: 'assistant', message: {...}}}
+              if (wsMessage.data != null) {
+                final responseData = wsMessage.data!;
+
+                // Check if this is an assistant message
+                if (responseData['type'] == 'assistant') {
+                  final message = responseData['message'];
+                  if (message != null && message['content'] is List) {
+                    // Extract text from content array
+                    for (var contentBlock in message['content']) {
+                      if (contentBlock['type'] == 'text') {
+                        content += contentBlock['text'] ?? '';
+                      }
+                    }
+                  }
                 }
-              });
+              }
+
+              if (content.isNotEmpty) {
+                // Check if last message is from assistant and streaming
+                if (messages.value.isNotEmpty &&
+                    messages.value.last.role == 'assistant' &&
+                    messages.value.last.isStreaming) {
+                  // Append to existing message
+                  final updatedMessages = [...messages.value];
+                  final lastMessage = updatedMessages.last;
+                  updatedMessages[updatedMessages.length - 1] = ChatMessage(
+                    id: lastMessage.id,
+                    role: 'assistant',
+                    content: lastMessage.content + content,
+                    timestamp: lastMessage.timestamp,
+                    isStreaming: true,
+                  );
+                  messages.value = updatedMessages;
+                } else {
+                  // Create new assistant message
+                  final chatMessage = ChatMessage(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    role: 'assistant',
+                    content: content,
+                    timestamp: DateTime.now().toIso8601String(),
+                    isStreaming: true,
+                  );
+                  messages.value = [...messages.value, chatMessage];
+                }
+              }
+            } else if (wsMessage.type == 'claude-complete') {
+              // Mark last message as complete (stop streaming)
+              if (messages.value.isNotEmpty && messages.value.last.isStreaming) {
+                final updatedMessages = [...messages.value];
+                final lastMessage = updatedMessages.last;
+                updatedMessages[updatedMessages.length - 1] = ChatMessage(
+                  id: lastMessage.id,
+                  role: lastMessage.role,
+                  content: lastMessage.content,
+                  timestamp: lastMessage.timestamp,
+                  isStreaming: false,
+                );
+                messages.value = updatedMessages;
+              }
+            } else if (wsMessage.type == 'session-created') {
+              // New session created
+              print('Session created: ${wsMessage.data?['sessionId']}');
             } else if (wsMessage.type == 'error') {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(wsMessage.error ?? 'Unknown error')),
-              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(wsMessage.error ?? 'Unknown error')),
+                );
+              }
             }
+
+            // Auto-scroll to bottom after any message update
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (scrollController.hasClients) {
+                scrollController.animateTo(
+                  scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
+            });
           });
 
           // Load existing messages if session is selected
@@ -136,6 +198,10 @@ class ChatScreen extends HookConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

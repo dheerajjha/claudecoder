@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../core/providers/providers.dart';
 import '../../data/models/project.dart';
@@ -94,7 +95,7 @@ class ProjectsScreen extends ConsumerWidget {
                         onPressed: () {
                           ref.read(selectedProjectProvider.notifier).state = project;
                           ref.read(selectedSessionProvider.notifier).state = null;
-                          Navigator.pushNamed(context, '/chat');
+                          context.go('/chat');
                         },
                       ),
                     ),
@@ -175,7 +176,7 @@ class SessionTile extends ConsumerWidget {
       onTap: () {
         ref.read(selectedProjectProvider.notifier).state = project;
         ref.read(selectedSessionProvider.notifier).state = session.id;
-        Navigator.pushNamed(context, '/chat');
+        context.go('/chat');
       },
     );
   }
