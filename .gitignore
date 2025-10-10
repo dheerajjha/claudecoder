@@ -101,6 +101,11 @@ coverage/
 !.yarn/sdks
 !.yarn/versions
 
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Optional caches
 .eslintcache
 .stylelintcache
@@ -181,6 +186,7 @@ app.*.map.json
 **/ios/**/DerivedData/
 **/ios/**/Icon?
 **/ios/**/Pods/
+**/ios/**/Podfile.lock
 **/ios/**/.symlinks/
 **/ios/**/profile
 **/ios/**/xcuserdata
