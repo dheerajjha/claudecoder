@@ -23,10 +23,10 @@ Session _$SessionFromJson(Map<String, dynamic> json) {
 mixin _$Session {
   String get id => throw _privateConstructorUsedError;
   String? get title => throw _privateConstructorUsedError;
-  @JsonKey(name: 'created_at')
+  @JsonKey(name: 'createdAt')
   String? get createdAt => throw _privateConstructorUsedError;
-  @JsonKey(name: 'updated_at')
-  String? get updatedAt => throw _privateConstructorUsedError;
+  @JsonKey(name: 'lastActivity')
+  String? get lastActivity => throw _privateConstructorUsedError;
   @JsonKey(name: 'message_count')
   int? get messageCount => throw _privateConstructorUsedError;
   String get provider => throw _privateConstructorUsedError;
@@ -48,8 +48,8 @@ abstract class $SessionCopyWith<$Res> {
   $Res call({
     String id,
     String? title,
-    @JsonKey(name: 'created_at') String? createdAt,
-    @JsonKey(name: 'updated_at') String? updatedAt,
+    @JsonKey(name: 'createdAt') String? createdAt,
+    @JsonKey(name: 'lastActivity') String? lastActivity,
     @JsonKey(name: 'message_count') int? messageCount,
     String provider,
   });
@@ -73,7 +73,7 @@ class _$SessionCopyWithImpl<$Res, $Val extends Session>
     Object? id = null,
     Object? title = freezed,
     Object? createdAt = freezed,
-    Object? updatedAt = freezed,
+    Object? lastActivity = freezed,
     Object? messageCount = freezed,
     Object? provider = null,
   }) {
@@ -91,9 +91,9 @@ class _$SessionCopyWithImpl<$Res, $Val extends Session>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as String?,
-            updatedAt: freezed == updatedAt
-                ? _value.updatedAt
-                : updatedAt // ignore: cast_nullable_to_non_nullable
+            lastActivity: freezed == lastActivity
+                ? _value.lastActivity
+                : lastActivity // ignore: cast_nullable_to_non_nullable
                       as String?,
             messageCount: freezed == messageCount
                 ? _value.messageCount
@@ -120,8 +120,8 @@ abstract class _$$SessionImplCopyWith<$Res> implements $SessionCopyWith<$Res> {
   $Res call({
     String id,
     String? title,
-    @JsonKey(name: 'created_at') String? createdAt,
-    @JsonKey(name: 'updated_at') String? updatedAt,
+    @JsonKey(name: 'createdAt') String? createdAt,
+    @JsonKey(name: 'lastActivity') String? lastActivity,
     @JsonKey(name: 'message_count') int? messageCount,
     String provider,
   });
@@ -144,7 +144,7 @@ class __$$SessionImplCopyWithImpl<$Res>
     Object? id = null,
     Object? title = freezed,
     Object? createdAt = freezed,
-    Object? updatedAt = freezed,
+    Object? lastActivity = freezed,
     Object? messageCount = freezed,
     Object? provider = null,
   }) {
@@ -162,9 +162,9 @@ class __$$SessionImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as String?,
-        updatedAt: freezed == updatedAt
-            ? _value.updatedAt
-            : updatedAt // ignore: cast_nullable_to_non_nullable
+        lastActivity: freezed == lastActivity
+            ? _value.lastActivity
+            : lastActivity // ignore: cast_nullable_to_non_nullable
                   as String?,
         messageCount: freezed == messageCount
             ? _value.messageCount
@@ -185,8 +185,8 @@ class _$SessionImpl implements _Session {
   const _$SessionImpl({
     required this.id,
     this.title,
-    @JsonKey(name: 'created_at') this.createdAt,
-    @JsonKey(name: 'updated_at') this.updatedAt,
+    @JsonKey(name: 'createdAt') this.createdAt,
+    @JsonKey(name: 'lastActivity') this.lastActivity,
     @JsonKey(name: 'message_count') this.messageCount,
     this.provider = 'claude',
   });
@@ -199,11 +199,11 @@ class _$SessionImpl implements _Session {
   @override
   final String? title;
   @override
-  @JsonKey(name: 'created_at')
+  @JsonKey(name: 'createdAt')
   final String? createdAt;
   @override
-  @JsonKey(name: 'updated_at')
-  final String? updatedAt;
+  @JsonKey(name: 'lastActivity')
+  final String? lastActivity;
   @override
   @JsonKey(name: 'message_count')
   final int? messageCount;
@@ -213,7 +213,7 @@ class _$SessionImpl implements _Session {
 
   @override
   String toString() {
-    return 'Session(id: $id, title: $title, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, provider: $provider)';
+    return 'Session(id: $id, title: $title, createdAt: $createdAt, lastActivity: $lastActivity, messageCount: $messageCount, provider: $provider)';
   }
 
   @override
@@ -225,8 +225,8 @@ class _$SessionImpl implements _Session {
             (identical(other.title, title) || other.title == title) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
-            (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt) &&
+            (identical(other.lastActivity, lastActivity) ||
+                other.lastActivity == lastActivity) &&
             (identical(other.messageCount, messageCount) ||
                 other.messageCount == messageCount) &&
             (identical(other.provider, provider) ||
@@ -240,7 +240,7 @@ class _$SessionImpl implements _Session {
     id,
     title,
     createdAt,
-    updatedAt,
+    lastActivity,
     messageCount,
     provider,
   );
@@ -263,8 +263,8 @@ abstract class _Session implements Session {
   const factory _Session({
     required final String id,
     final String? title,
-    @JsonKey(name: 'created_at') final String? createdAt,
-    @JsonKey(name: 'updated_at') final String? updatedAt,
+    @JsonKey(name: 'createdAt') final String? createdAt,
+    @JsonKey(name: 'lastActivity') final String? lastActivity,
     @JsonKey(name: 'message_count') final int? messageCount,
     final String provider,
   }) = _$SessionImpl;
@@ -276,11 +276,11 @@ abstract class _Session implements Session {
   @override
   String? get title;
   @override
-  @JsonKey(name: 'created_at')
+  @JsonKey(name: 'createdAt')
   String? get createdAt;
   @override
-  @JsonKey(name: 'updated_at')
-  String? get updatedAt;
+  @JsonKey(name: 'lastActivity')
+  String? get lastActivity;
   @override
   @JsonKey(name: 'message_count')
   int? get messageCount;

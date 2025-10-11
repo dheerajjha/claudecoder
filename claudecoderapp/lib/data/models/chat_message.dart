@@ -18,47 +18,72 @@ class ChatMessage with _$ChatMessage {
 
   // Custom fromJson that mirrors web client's convertSessionMessages logic
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    // Handle JSONL entry format from backend (matches web client's approach)
-    if (json.containsKey('message') && json['message'] is Map) {
-      final message = json['message'] as Map<String, dynamic>;
-      final role = message['role'] ?? 'user';
-      String content = '';
-      bool isToolUse = false;
-      String? toolName;
+    try {
+      // Handle JSONL entry format from backend (matches web client's approach)
+      if (json.containsKey('message') && json['message'] is Map) {
+        final message = json['message'] as Map<String, dynamic>;
+        final role = (message['role'] ?? 'user').toString();
+        String content = '';
+        bool isToolUse = false;
+        String? toolName;
 
-      // Extract content - handle both string and array formats (like web client)
-      final messageContent = message['content'];
-      if (messageContent is String) {
-        content = messageContent;
-      } else if (messageContent is List) {
-        final textParts = <String>[];
-        for (var part in messageContent) {
-          if (part is Map) {
-            if (part['type'] == 'text') {
-              textParts.add(part['text'] ?? '');
-            } else if (part['type'] == 'tool_use') {
-              isToolUse = true;
-              toolName = part['name'];
+        // Extract content - handle both string and array formats (like web client)
+        final messageContent = message['content'];
+        if (messageContent is String) {
+          content = messageContent;
+        } else if (messageContent is List) {
+          final textParts = <String>[];
+          for (var part in messageContent) {
+            if (part is Map) {
+              if (part['type'] == 'text') {
+                final text = (part['text'] ?? '').toString();
+                if (text.isNotEmpty) {
+                  textParts.add(text);
+                }
+              } else if (part['type'] == 'tool_use') {
+                isToolUse = true;
+                toolName = part['name']?.toString();
+              }
             }
           }
+          // Join with newlines like web client (line 1716 in ChatInterface.jsx)
+          content = textParts.join('\n');
         }
-        content = textParts.join('');
+
+        return ChatMessage(
+          id: json['uuid']?.toString() ?? json['sessionId']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          role: role,
+          content: content,
+          timestamp: json['timestamp']?.toString(),
+          metadata: json,
+          isStreaming: false,
+          isToolUse: isToolUse,
+          toolName: toolName,
+        );
       }
 
+      // Standard format (for new messages created in-app)
       return ChatMessage(
-        id: json['uuid']?.toString() ?? json['sessionId']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        role: role,
-        content: content,
+        id: json['id']?.toString() ?? '',
+        role: json['role']?.toString() ?? 'user',
+        content: json['content']?.toString() ?? '',
         timestamp: json['timestamp']?.toString(),
+        metadata: json['metadata'] as Map<String, dynamic>?,
+        isStreaming: json['isStreaming'] as bool? ?? false,
+        isToolUse: json['isToolUse'] as bool?,
+        toolName: json['toolName']?.toString(),
+      );
+    } catch (e) {
+      // If parsing fails, return a placeholder message with error info
+      return ChatMessage(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        role: 'system',
+        content: 'Error parsing message: $e',
+        timestamp: DateTime.now().toIso8601String(),
         metadata: json,
         isStreaming: false,
-        isToolUse: isToolUse,
-        toolName: toolName,
       );
     }
-
-    // Standard format (for new messages created in-app)
-    return _$ChatMessageFromJson(json);
   }
 }
 

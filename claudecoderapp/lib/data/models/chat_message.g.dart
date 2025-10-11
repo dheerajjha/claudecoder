@@ -6,26 +6,6 @@ part of 'chat_message.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$ChatMessageImpl _$$ChatMessageImplFromJson(Map<String, dynamic> json) =>
-    _$ChatMessageImpl(
-      id: json['id'] as String,
-      role: json['role'] as String,
-      content: json['content'] as String,
-      timestamp: json['timestamp'] as String?,
-      metadata: json['metadata'] as Map<String, dynamic>?,
-      isStreaming: json['isStreaming'] as bool? ?? false,
-    );
-
-Map<String, dynamic> _$$ChatMessageImplToJson(_$ChatMessageImpl instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'role': instance.role,
-      'content': instance.content,
-      'timestamp': instance.timestamp,
-      'metadata': instance.metadata,
-      'isStreaming': instance.isStreaming,
-    };
-
 _$WebSocketMessageImpl _$$WebSocketMessageImplFromJson(
   Map<String, dynamic> json,
 ) => _$WebSocketMessageImpl(

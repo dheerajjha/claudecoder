@@ -133,7 +133,11 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = response.data;
         final List<dynamic> messages = data['messages'] ?? [];
-        return messages.map((json) => ChatMessage.fromJson(json)).toList();
+        // Convert and filter out empty messages (like web client does)
+        return messages
+            .map((json) => ChatMessage.fromJson(json))
+            .where((msg) => msg.content.isNotEmpty)
+            .toList();
       }
       throw Exception('Failed to load messages');
     } on DioException catch (e) {

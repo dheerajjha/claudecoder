@@ -159,9 +159,11 @@ class SessionTile extends ConsumerWidget {
       ),
       title: Text(session.title ?? 'Session ${session.id}'),
       subtitle: Text(
-        session.updatedAt != null
-            ? timeago.format(DateTime.parse(session.updatedAt!))
-            : 'No date',
+        session.lastActivity != null
+            ? timeago.format(DateTime.parse(session.lastActivity!))
+            : (session.createdAt != null
+                ? timeago.format(DateTime.parse(session.createdAt!))
+                : 'No date'),
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: session.messageCount != null

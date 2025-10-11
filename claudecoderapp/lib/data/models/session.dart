@@ -8,8 +8,8 @@ class Session with _$Session {
   const factory Session({
     required String id,
     String? title,
-    @JsonKey(name: 'created_at') String? createdAt,
-    @JsonKey(name: 'updated_at') String? updatedAt,
+    @JsonKey(name: 'createdAt') String? createdAt,
+    @JsonKey(name: 'lastActivity') String? lastActivity,
     @JsonKey(name: 'message_count') int? messageCount,
     @Default('claude') String provider,
   }) = _Session;

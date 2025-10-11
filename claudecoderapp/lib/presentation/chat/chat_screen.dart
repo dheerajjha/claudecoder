@@ -4,8 +4,10 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
+import 'package:markdown/markdown.dart' as md;
 import '../../core/providers/providers.dart';
 import '../../data/models/chat_message.dart';
+import 'widgets/code_block.dart';
 
 class ChatScreen extends HookConsumerWidget {
   const ChatScreen({super.key});
@@ -114,11 +116,11 @@ class ChatScreen extends HookConsumerWidget {
               }
             }
 
-            // Auto-scroll to bottom after any message update
+            // Auto-scroll to bottom (position 0 in reverse ListView)
             Future.delayed(const Duration(milliseconds: 100), () {
               if (scrollController.hasClients) {
                 scrollController.animateTo(
-                  scrollController.position.maxScrollExtent,
+                  0,
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOut,
                 );
@@ -175,11 +177,11 @@ class ChatScreen extends HookConsumerWidget {
         resume: selectedSessionId != null,
       );
 
-      // Auto-scroll to bottom
+      // Auto-scroll to bottom (position 0 in reverse ListView)
       Future.delayed(const Duration(milliseconds: 100), () {
         if (scrollController.hasClients) {
           scrollController.animateTo(
-            scrollController.position.maxScrollExtent,
+            0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -257,10 +259,13 @@ class ChatScreen extends HookConsumerWidget {
                       )
                     : ListView.builder(
                         controller: scrollController,
+                        reverse: true,
                         padding: const EdgeInsets.all(16),
                         itemCount: messages.value.length,
                         itemBuilder: (context, index) {
-                          final message = messages.value[index];
+                          // Reverse the index since we're using reverse: true
+                          final reversedIndex = messages.value.length - 1 - index;
+                          final message = messages.value[reversedIndex];
                           return MessageBubble(message: message);
                         },
                       ),
@@ -372,10 +377,35 @@ class MessageBubble extends StatelessWidget {
                   fontFamily: 'monospace',
                 ),
               ),
+              builders: {
+                'code': CodeBlockBuilder(),
+              },
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class CodeBlockBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final String code = element.textContent;
+
+    // Extract language from code fence (e.g., ```dart, ```python)
+    String? language;
+    if (element.attributes['class'] != null) {
+      // Class format is typically "language-dart" or "language-python"
+      final classAttr = element.attributes['class']!;
+      if (classAttr.startsWith('language-')) {
+        language = classAttr.substring('language-'.length);
+      }
+    }
+
+    return CodeBlock(
+      code: code,
+      language: language,
     );
   }
 }

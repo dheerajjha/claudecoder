@@ -1,5 +1,81 @@
 # Flutter App Status - Latest Fixes
 
+## ✅ Latest Updates
+
+### Empty Message Bubbles & Session Dates Fixed (NEWEST - Just Fixed)
+
+**Issue #1: Empty Message Bubbles**
+- Some messages showed only header (Claude/You) with no content
+- Web client showed these messages fine
+
+**Files**:
+- `lib/data/models/chat_message.dart:30-51` - Join text parts with newlines
+- `lib/data/services/api_service.dart:136-140` - Filter out empty messages
+
+**Solution**:
+- Join multiple text parts with `\n` instead of empty string (matches web client line 1716)
+- Filter out messages with empty content before displaying (matches web client line 1724)
+- Only extract non-empty text from content blocks
+
+**Issue #2: Session Dates Showing "No date"**
+- Session list showed "No date" for all sessions
+
+**Files**:
+- `lib/data/models/session.dart:11-12` - Updated field names
+- `lib/presentation/projects/projects_screen.dart:162-166` - Use correct fields
+
+**Solution**:
+- Changed from `updated_at`/`created_at` to `lastActivity`/`createdAt` (matches backend API)
+- Fallback to `createdAt` if `lastActivity` is not available
+- Uses `timeago` package to show relative dates ("2 hours ago", etc.)
+
+**Testing**:
+- Open previous session - all messages with content should display
+- Session list should show relative timestamps like "2 hours ago"
+
+---
+
+### Null Safety Fix in ChatMessage.fromJson
+**File**: `lib/data/models/chat_message.dart:19-83`
+
+**Issue**:
+- Toast error: "Failed to connect: type 'Null' is not a subtype of type 'String' in type cast"
+- Occurred when loading previous session messages
+- Type casts without null checks were failing on JSONL entries with unexpected null fields
+
+**Solution**:
+- Wrapped entire `fromJson` in try-catch block for graceful error handling
+- Changed all unsafe type casts (`as String`) to null-safe conversions (`?.toString() ?? ''`)
+- Added explicit `.toString()` calls to ensure type safety throughout
+- Returns placeholder "error" message if parsing fails completely (preserves raw JSON in metadata for debugging)
+- Now handles any edge cases in backend JSONL format without crashing
+
+**Testing**: Open previous session - should load messages without error toast
+
+---
+
+### Code Syntax Highlighting with Copy Button
+**Files**:
+- `lib/presentation/chat/widgets/code_block.dart` (new file)
+- `lib/presentation/chat/chat_screen.dart:1-10, 377-408`
+- `pubspec.yaml:54-55`
+
+**Features**:
+- Syntax highlighting for code blocks using `flutter_highlight` package
+- Copy to clipboard button with visual feedback
+- Language detection from markdown code fences (```dart, ```python, etc.)
+- Dark/light theme support (GitHub/GitHub-dark themes)
+- Language name displayed in header
+- Horizontal scrolling for long code lines
+- Professional GitHub-style code block UI
+
+**Implementation**:
+- Created custom `CodeBlock` widget with copy functionality
+- Integrated with `MarkdownBody` using `CodeBlockBuilder`
+- Automatically extracts language from code fence attributes
+- Shows "Copied!" feedback for 2 seconds after copying
+- Supports both inline and fenced code blocks
+
 ## ✅ Fixes Applied in This Session
 
 ### 1. Chat Screen - Back Button Added
@@ -142,14 +218,13 @@ flutter run -d macos
 - ✅ WebSocket connection
 - ✅ Real-time chat with streaming
 - ✅ Markdown rendering
+- ✅ Code syntax highlighting with copy button
 - ✅ Navigation with back button
 - ✅ Auto-scroll
 - ✅ Connection status indicator
 
 ### Not Yet Implemented (from FEATURE_PARITY.md)
 - ⏳ Delete/rename sessions
-- ⏳ Code syntax highlighting
-- ⏳ Copy code button
 - ⏳ Stop/abort session button
 - ⏳ File viewing/editing
 - ⏳ Git integration
@@ -161,9 +236,9 @@ flutter run -d macos
 Based on `FEATURE_PARITY.md`, recommended enhancements in order of priority:
 
 1. **Chat Enhancements**
-   - Code syntax highlighting (using `flutter_syntax_view` or `highlight` package)
-   - Copy code button for code blocks
-   - Stop/abort button during active session
+   - ✅ Code syntax highlighting (using `flutter_highlight` package) - DONE
+   - ✅ Copy code button for code blocks - DONE
+   - ⏳ Stop/abort button during active session
 
 2. **Session Management**
    - Delete session functionality

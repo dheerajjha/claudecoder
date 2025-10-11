@@ -15,10 +15,6 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
-ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) {
-  return _ChatMessage.fromJson(json);
-}
-
 /// @nodoc
 mixin _$ChatMessage {
   String get id => throw _privateConstructorUsedError;
@@ -28,9 +24,8 @@ mixin _$ChatMessage {
   String? get timestamp => throw _privateConstructorUsedError;
   Map<String, dynamic>? get metadata => throw _privateConstructorUsedError;
   bool get isStreaming => throw _privateConstructorUsedError;
-
-  /// Serializes this ChatMessage to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  bool? get isToolUse => throw _privateConstructorUsedError;
+  String? get toolName => throw _privateConstructorUsedError;
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.
@@ -53,6 +48,8 @@ abstract class $ChatMessageCopyWith<$Res> {
     String? timestamp,
     Map<String, dynamic>? metadata,
     bool isStreaming,
+    bool? isToolUse,
+    String? toolName,
   });
 }
 
@@ -77,6 +74,8 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
     Object? timestamp = freezed,
     Object? metadata = freezed,
     Object? isStreaming = null,
+    Object? isToolUse = freezed,
+    Object? toolName = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -104,6 +103,14 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
                 ? _value.isStreaming
                 : isStreaming // ignore: cast_nullable_to_non_nullable
                       as bool,
+            isToolUse: freezed == isToolUse
+                ? _value.isToolUse
+                : isToolUse // ignore: cast_nullable_to_non_nullable
+                      as bool?,
+            toolName: freezed == toolName
+                ? _value.toolName
+                : toolName // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -126,6 +133,8 @@ abstract class _$$ChatMessageImplCopyWith<$Res>
     String? timestamp,
     Map<String, dynamic>? metadata,
     bool isStreaming,
+    bool? isToolUse,
+    String? toolName,
   });
 }
 
@@ -149,6 +158,8 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
     Object? timestamp = freezed,
     Object? metadata = freezed,
     Object? isStreaming = null,
+    Object? isToolUse = freezed,
+    Object? toolName = freezed,
   }) {
     return _then(
       _$ChatMessageImpl(
@@ -176,13 +187,21 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
             ? _value.isStreaming
             : isStreaming // ignore: cast_nullable_to_non_nullable
                   as bool,
+        isToolUse: freezed == isToolUse
+            ? _value.isToolUse
+            : isToolUse // ignore: cast_nullable_to_non_nullable
+                  as bool?,
+        toolName: freezed == toolName
+            ? _value.toolName
+            : toolName // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
 }
 
 /// @nodoc
-@JsonSerializable()
+
 class _$ChatMessageImpl implements _ChatMessage {
   const _$ChatMessageImpl({
     required this.id,
@@ -191,10 +210,9 @@ class _$ChatMessageImpl implements _ChatMessage {
     this.timestamp,
     final Map<String, dynamic>? metadata,
     this.isStreaming = false,
+    this.isToolUse,
+    this.toolName,
   }) : _metadata = metadata;
-
-  factory _$ChatMessageImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ChatMessageImplFromJson(json);
 
   @override
   final String id;
@@ -218,10 +236,14 @@ class _$ChatMessageImpl implements _ChatMessage {
   @override
   @JsonKey()
   final bool isStreaming;
+  @override
+  final bool? isToolUse;
+  @override
+  final String? toolName;
 
   @override
   String toString() {
-    return 'ChatMessage(id: $id, role: $role, content: $content, timestamp: $timestamp, metadata: $metadata, isStreaming: $isStreaming)';
+    return 'ChatMessage(id: $id, role: $role, content: $content, timestamp: $timestamp, metadata: $metadata, isStreaming: $isStreaming, isToolUse: $isToolUse, toolName: $toolName)';
   }
 
   @override
@@ -236,10 +258,13 @@ class _$ChatMessageImpl implements _ChatMessage {
                 other.timestamp == timestamp) &&
             const DeepCollectionEquality().equals(other._metadata, _metadata) &&
             (identical(other.isStreaming, isStreaming) ||
-                other.isStreaming == isStreaming));
+                other.isStreaming == isStreaming) &&
+            (identical(other.isToolUse, isToolUse) ||
+                other.isToolUse == isToolUse) &&
+            (identical(other.toolName, toolName) ||
+                other.toolName == toolName));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
@@ -249,6 +274,8 @@ class _$ChatMessageImpl implements _ChatMessage {
     timestamp,
     const DeepCollectionEquality().hash(_metadata),
     isStreaming,
+    isToolUse,
+    toolName,
   );
 
   /// Create a copy of ChatMessage
@@ -258,11 +285,6 @@ class _$ChatMessageImpl implements _ChatMessage {
   @pragma('vm:prefer-inline')
   _$$ChatMessageImplCopyWith<_$ChatMessageImpl> get copyWith =>
       __$$ChatMessageImplCopyWithImpl<_$ChatMessageImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ChatMessageImplToJson(this);
-  }
 }
 
 abstract class _ChatMessage implements ChatMessage {
@@ -273,10 +295,9 @@ abstract class _ChatMessage implements ChatMessage {
     final String? timestamp,
     final Map<String, dynamic>? metadata,
     final bool isStreaming,
+    final bool? isToolUse,
+    final String? toolName,
   }) = _$ChatMessageImpl;
-
-  factory _ChatMessage.fromJson(Map<String, dynamic> json) =
-      _$ChatMessageImpl.fromJson;
 
   @override
   String get id;
@@ -290,6 +311,10 @@ abstract class _ChatMessage implements ChatMessage {
   Map<String, dynamic>? get metadata;
   @override
   bool get isStreaming;
+  @override
+  bool? get isToolUse;
+  @override
+  String? get toolName;
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.
