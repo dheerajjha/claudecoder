@@ -85,17 +85,17 @@ async function spawnClaude(command, options = {}, ws) {
     
     // Add MCP config flag only if MCP servers are configured
     try {
-      console.log('🔍 Starting MCP config check...');
+      // console.log('🔍 Starting MCP config check...');
       // Use already imported modules (fs.promises is imported as fs, path, os)
       const fsSync = await import('fs'); // Import synchronous fs methods
-      console.log('✅ Successfully imported fs sync methods');
-      
+      // console.log('✅ Successfully imported fs sync methods');
+
       // Check for MCP config in ~/.claude.json
       const claudeConfigPath = path.join(os.homedir(), '.claude.json');
-      
-      console.log(`🔍 Checking for MCP configs in: ${claudeConfigPath}`);
-      console.log(`  Claude config exists: ${fsSync.existsSync(claudeConfigPath)}`);
-      
+
+      // console.log(`🔍 Checking for MCP configs in: ${claudeConfigPath}`);
+      // console.log(`  Claude config exists: ${fsSync.existsSync(claudeConfigPath)}`);
+
       let hasMcpServers = false;
       
       // Check Claude config for MCP servers
@@ -105,16 +105,16 @@ async function spawnClaude(command, options = {}, ws) {
           
           // Check global MCP servers
           if (claudeConfig.mcpServers && Object.keys(claudeConfig.mcpServers).length > 0) {
-            console.log(`✅ Found ${Object.keys(claudeConfig.mcpServers).length} global MCP servers`);
+            // console.log(`✅ Found ${Object.keys(claudeConfig.mcpServers).length} global MCP servers`);
             hasMcpServers = true;
           }
-          
+
           // Check project-specific MCP servers
           if (!hasMcpServers && claudeConfig.claudeProjects) {
             const currentProjectPath = process.cwd();
             const projectConfig = claudeConfig.claudeProjects[currentProjectPath];
             if (projectConfig && projectConfig.mcpServers && Object.keys(projectConfig.mcpServers).length > 0) {
-              console.log(`✅ Found ${Object.keys(projectConfig.mcpServers).length} project MCP servers`);
+              // console.log(`✅ Found ${Object.keys(projectConfig.mcpServers).length} project MCP servers`);
               hasMcpServers = true;
             }
           }
@@ -122,8 +122,8 @@ async function spawnClaude(command, options = {}, ws) {
           console.log(`❌ Failed to parse Claude config:`, e.message);
         }
       }
-      
-      console.log(`🔍 hasMcpServers result: ${hasMcpServers}`);
+
+      // console.log(`🔍 hasMcpServers result: ${hasMcpServers}`);
       
       if (hasMcpServers) {
         // Use Claude config file if it has MCP servers
@@ -146,9 +146,10 @@ async function spawnClaude(command, options = {}, ws) {
             // No valid config found
           }
         }
-        
+
+
         if (configPath) {
-          console.log(`📡 Adding MCP config: ${configPath}`);
+          // console.log(`📡 Adding MCP config: ${configPath}`);
           args.push('--mcp-config', configPath);
         } else {
           console.log('⚠️ MCP servers detected but no valid config file found');
@@ -157,8 +158,8 @@ async function spawnClaude(command, options = {}, ws) {
     } catch (error) {
       // If there's any error checking for MCP configs, don't add the flag
       console.log('❌ MCP config check failed:', error.message);
-      console.log('📍 Error stack:', error.stack);
-      console.log('Note: MCP config check failed, proceeding without MCP support');
+      // console.log('📍 Error stack:', error.stack);
+      // console.log('Note: MCP config check failed, proceeding without MCP support');
     }
     
     // Add model for new sessions
@@ -169,20 +170,20 @@ async function spawnClaude(command, options = {}, ws) {
     // Add permission mode if specified (works for both new and resumed sessions)
     if (permissionMode && permissionMode !== 'default') {
       args.push('--permission-mode', permissionMode);
-      console.log('🔒 Using permission mode:', permissionMode);
+      // console.log('🔒 Using permission mode:', permissionMode);
     }
-    
+
     // Add tools settings flags
     // Don't use --dangerously-skip-permissions when in plan mode
     if (settings.skipPermissions && permissionMode !== 'plan') {
       args.push('--dangerously-skip-permissions');
-      console.log('⚠️  Using --dangerously-skip-permissions (skipping other tool settings)');
+      console.log('⚠️  Skip permissions enabled');
     } else {
       // Only add allowed/disallowed tools if not skipping permissions
-      
+
       // Collect all allowed tools, including plan mode defaults
       let allowedTools = [...(settings.allowedTools || [])];
-      
+
       // Add plan mode specific tools
       if (permissionMode === 'plan') {
         const planModeTools = ['Read', 'Task', 'exit_plan_mode', 'TodoRead', 'TodoWrite'];
@@ -192,28 +193,28 @@ async function spawnClaude(command, options = {}, ws) {
             allowedTools.push(tool);
           }
         }
-        console.log('📝 Plan mode: Added default allowed tools:', planModeTools);
+        // console.log('📝 Plan mode: Added default allowed tools:', planModeTools);
       }
-      
+
       // Add allowed tools
       if (allowedTools.length > 0) {
         for (const tool of allowedTools) {
           args.push('--allowedTools', tool);
-          console.log('✅ Allowing tool:', tool);
+          // console.log('✅ Allowing tool:', tool);
         }
       }
-      
+
       // Add disallowed tools
       if (settings.disallowedTools && settings.disallowedTools.length > 0) {
         for (const tool of settings.disallowedTools) {
           args.push('--disallowedTools', tool);
-          console.log('❌ Disallowing tool:', tool);
+          // console.log('❌ Disallowing tool:', tool);
         }
       }
-      
+
       // Log when skip permissions is disabled due to plan mode
       if (settings.skipPermissions && permissionMode === 'plan') {
-        console.log('📝 Skip permissions disabled due to plan mode');
+        // console.log('📝 Skip permissions disabled due to plan mode');
       }
     }
 
@@ -228,18 +229,18 @@ async function spawnClaude(command, options = {}, ws) {
       args.push(command);
     }
     
-    console.log('Spawning Claude CLI:', 'claude', args.map(arg => {
-      const cleanArg = arg.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-      return cleanArg.includes(' ') ? `"${cleanArg}"` : cleanArg;
-    }).join(' '));
+    // console.log('Spawning Claude CLI:', 'claude', args.map(arg => {
+    //   const cleanArg = arg.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+    //   return cleanArg.includes(' ') ? `"${cleanArg}"` : cleanArg;
+    // }).join(' '));
     console.log('Working directory:', workingDir);
-    console.log('Session info - Input sessionId:', sessionId, 'Resume:', resume);
-    console.log('🔍 Full command args:', JSON.stringify(args, null, 2));
-    console.log('🔍 Final Claude command will be: claude ' + args.join(' '));
-    
+    console.log('Session:', sessionId ? `Resume ${sessionId}` : 'New');
+    // console.log('🔍 Full command args:', JSON.stringify(args, null, 2));
+    // console.log('🔍 Final Claude command will be: claude ' + args.join(' '));
+
     // Use Claude CLI from environment variable or default to 'claude'
     const claudePath = process.env.CLAUDE_CLI_PATH || 'claude';
-    console.log('🔍 Using Claude CLI path:', claudePath);
+    // console.log('🔍 Using Claude CLI path:', claudePath);
     
     const claudeProcess = spawnFunction(claudePath, args, {
       cwd: workingDir,
@@ -258,19 +259,19 @@ async function spawnClaude(command, options = {}, ws) {
     // Handle stdout (streaming JSON responses)
     claudeProcess.stdout.on('data', (data) => {
       const rawOutput = data.toString();
-      console.log('📤 Claude CLI stdout:', rawOutput);
-      
+      // console.log('📤 Claude CLI stdout:', rawOutput);
+
       const lines = rawOutput.split('\n').filter(line => line.trim());
-      
+
       for (const line of lines) {
         try {
           const response = JSON.parse(line);
-          console.log('📄 Parsed JSON response:', response);
-          
+          // console.log('📄 Parsed JSON response:', response);
+
           // Capture session ID if it's in the response
           if (response.session_id && !capturedSessionId) {
             capturedSessionId = response.session_id;
-            console.log('📝 Captured session ID:', capturedSessionId);
+            console.log('✅ Session created:', capturedSessionId);
             
             // Update process key with captured session ID
             if (processKey !== capturedSessionId) {
@@ -294,7 +295,7 @@ async function spawnClaude(command, options = {}, ws) {
             data: response
           }));
         } catch (parseError) {
-          console.log('📄 Non-JSON response:', line);
+          // console.log('📄 Non-JSON response:', line);
           // If not JSON, send as raw text
           ws.send(JSON.stringify({
             type: 'claude-output',
@@ -315,7 +316,7 @@ async function spawnClaude(command, options = {}, ws) {
     
     // Handle process completion
     claudeProcess.on('close', async (code) => {
-      console.log(`Claude CLI process exited with code ${code}`);
+      console.log(`✅ Claude session completed (exit code: ${code})`);
       
       // Clean up process reference
       const finalSessionId = capturedSessionId || sessionId || processKey;

@@ -6,6 +6,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../core/providers/providers.dart';
 import '../../data/models/project.dart';
 import '../../data/models/session.dart';
+import 'widgets/directory_browser.dart';
 
 class ProjectsScreen extends ConsumerWidget {
   const ProjectsScreen({super.key});
@@ -127,20 +128,198 @@ class ProjectsScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Implement create project dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Create project coming soon')),
-          );
-        },
+        onPressed: () => _showNewProjectDialog(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('New Project'),
       ),
     );
   }
+
+  void _showNewProjectDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => _NewProjectDialog(ref: ref),
+    );
+  }
 }
 
-class SessionTile extends ConsumerWidget {
+class _NewProjectDialog extends StatefulWidget {
+  final WidgetRef ref;
+
+  const _NewProjectDialog({required this.ref});
+
+  @override
+  State<_NewProjectDialog> createState() => _NewProjectDialogState();
+}
+
+class _NewProjectDialogState extends State<_NewProjectDialog> {
+  String? _selectedPath;
+  bool _isCreating = false;
+
+  void _onDirectorySelected(String path) {
+    setState(() {
+      _selectedPath = path;
+    });
+  }
+
+  Future<void> _createProject() async {
+    if (_selectedPath == null) return;
+
+    setState(() {
+      _isCreating = true;
+    });
+
+    try {
+      final apiService = widget.ref.read(apiServiceProvider);
+      final project = await apiService.createProject(_selectedPath!);
+
+      // Refresh projects list
+      widget.ref.invalidate(projectsProvider);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+
+        // Set as selected project and navigate to chat
+        widget.ref.read(selectedProjectProvider.notifier).state = project;
+        widget.ref.read(selectedSessionProvider.notifier).state = null;
+        context.go('/chat');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCreating = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create project: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.85,
+        height: MediaQuery.of(context).size.height * 0.75,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'New Project',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: _isCreating ? null : () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ],
+            ),
+            const Gap(6),
+            const Text(
+              'Browse server directories and select a folder to register as a project:',
+              style: TextStyle(fontSize: 11),
+            ),
+            const Gap(12),
+
+            // Directory browser
+            Expanded(
+              child: DirectoryBrowser(
+                onDirectorySelected: _onDirectorySelected,
+              ),
+            ),
+
+            const Gap(12),
+
+            // Selected path display - compact
+            if (_selectedPath != null) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.folder,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    const Gap(6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selected:',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          Text(
+                            _selectedPath!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Gap(12),
+            ],
+
+            // Action buttons - compact
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isCreating ? null : () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: const Text('Cancel', style: TextStyle(fontSize: 12)),
+                ),
+                const Gap(8),
+                FilledButton(
+                  onPressed: _selectedPath == null || _isCreating ? null : _createProject,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: _isCreating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create Project', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SessionTile extends ConsumerWidget{
   final Session session;
   final Project project;
 

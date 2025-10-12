@@ -72,14 +72,22 @@ class WebSocketService {
     String? projectPath,
     String? sessionId,
     bool resume = false,
+    bool skipPermissions = false,  // Default to ask for permissions (safer)
   }) {
     sendMessage({
       'type': 'claude-command',
       'command': command,
       'options': {
         if (projectPath != null) 'projectPath': projectPath,
+        if (projectPath != null) 'cwd': projectPath,  // Add cwd for working directory
         if (sessionId != null) 'sessionId': sessionId,
         'resume': resume,
+        // Add tools settings to control permissions
+        'toolsSettings': {
+          'skipPermissions': skipPermissions,
+          'allowedTools': [],
+          'disallowedTools': [],
+        },
       },
     });
   }

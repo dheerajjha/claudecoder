@@ -145,6 +145,44 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> browseFilesystem({String? path}) async {
+    try {
+      final response = await _dio.get(
+        '/api/browse-filesystem',
+        queryParameters: {
+          if (path != null) 'path': path,
+        },
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      throw Exception('Failed to browse filesystem');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  Future<Map<String, dynamic>> createDirectory({
+    required String parentPath,
+    required String dirName,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/create-directory',
+        data: {
+          'parentPath': parentPath,
+          'dirName': dirName,
+        },
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      throw Exception('Failed to create directory');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
   Future<Project> createProject(String path) async {
     try {
       final response = await _dio.post(

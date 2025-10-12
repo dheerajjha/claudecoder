@@ -2,7 +2,36 @@
 
 ## ✅ Latest Updates
 
-### Empty Message Bubbles & Session Dates Fixed (NEWEST - Just Fixed)
+### New Project Feature Implemented (NEWEST - Just Completed)
+
+**What**: Users can now register new folders as projects directly from the Flutter app
+
+**Files**:
+- `pubspec.yaml:58` - Added `file_picker` package
+- `lib/data/services/api_service.dart:148-161` - `createProject` API method (was already there)
+- `lib/presentation/projects/projects_screen.dart:138-276` - New Project dialog with folder picker
+
+**How it works**:
+1. User taps "New Project" floating action button
+2. Dialog opens with folder picker
+3. User selects a folder from their device (uses native folder picker)
+4. App sends folder path to server (`POST /api/projects/create`)
+5. Server adds project to `~/.claude/project-config.json`
+6. App refreshes project list and navigates to chat
+
+**Key Features**:
+- Native folder picker (iOS/Android/macOS)
+- Shows selected path before creating
+- Loading indicator while creating
+- Error handling with user-friendly messages
+- Auto-navigates to chat after successful creation
+- Refreshes project list automatically
+
+**Important**: The app does NOT create the folder - it only registers an existing folder with the Claude Code server
+
+---
+
+### Empty Message Bubbles & Session Dates Fixed
 
 **Issue #1: Empty Message Bubbles**
 - Some messages showed only header (Claude/You) with no content
@@ -214,13 +243,14 @@ flutter run -d macos
 ### Core Features (Working)
 - ✅ JWT Authentication
 - ✅ Project listing
+- ✅ Create new project (register folder)
 - ✅ Session listing
 - ✅ WebSocket connection
 - ✅ Real-time chat with streaming
 - ✅ Markdown rendering
 - ✅ Code syntax highlighting with copy button
 - ✅ Navigation with back button
-- ✅ Auto-scroll
+- ✅ Auto-scroll to bottom on open
 - ✅ Connection status indicator
 
 ### Not Yet Implemented (from FEATURE_PARITY.md)

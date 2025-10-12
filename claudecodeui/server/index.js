@@ -1053,6 +1053,51 @@ app.post('/api/projects/:projectName/upload-images', authenticateToken, async (r
     }
 });
 
+// Create directory endpoint
+app.post('/api/create-directory', authenticateToken, async (req, res) => {
+    try {
+        const { parentPath, dirName } = req.body;
+        
+        if (!parentPath || !dirName) {
+            return res.status(400).json({ error: 'Parent path and directory name are required' });
+        }
+        
+        // Security check - ensure parent path is absolute
+        if (!path.isAbsolute(parentPath)) {
+            return res.status(400).json({ error: 'Invalid parent path' });
+        }
+        
+        // Sanitize directory name - remove any path separators
+        const sanitizedName = dirName.replace(/[\/\\]/g, '');
+        if (!sanitizedName || sanitizedName.trim().length === 0) {
+            return res.status(400).json({ error: 'Invalid directory name' });
+        }
+        
+        const newDirPath = path.join(parentPath, sanitizedName);
+        
+        // Check if directory already exists
+        try {
+            await fsPromises.access(newDirPath);
+            return res.status(409).json({ error: 'Directory already exists' });
+        } catch (err) {
+            // Directory doesn't exist, proceed with creation
+        }
+        
+        // Create the directory
+        await fsPromises.mkdir(newDirPath, { recursive: false });
+
+        res.json({ success: true, path: newDirPath, name: sanitizedName });
+
+    } catch (error) {
+        console.error('Error creating directory:', error);
+        if (error.code === 'EACCES') {
+            res.status(403).json({ error: 'Permission denied' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
+    }
+});
+
 // Serve React app for all other routes
 app.get('*', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
@@ -1086,6 +1131,9 @@ async function getFileTree(dirPath, maxDepth = 3, currentDepth = 0, showHidden =
             if (entry.name === 'node_modules' ||
                 entry.name === 'dist' ||
                 entry.name === 'build') continue;
+
+            // Skip hidden files if showHidden is false
+            if (!showHidden && entry.name.startsWith('.')) continue;
 
             const itemPath = path.join(dirPath, entry.name);
             const item = {
