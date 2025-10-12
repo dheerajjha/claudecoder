@@ -236,16 +236,33 @@ class ApiService {
     }
   }
 
-  Future<String> getFileContent(String projectName, String filePath) async {
+  Future<Map<String, dynamic>> getFileContent(String projectName, String filePath) async {
     try {
       final response = await _dio.get(
         '/api/projects/$projectName/file',
         queryParameters: {'filePath': filePath},
       );
       if (response.statusCode == 200) {
-        return response.data['content'] ?? '';
+        return response.data;
       }
       throw Exception('Failed to load file content');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  Future<void> saveFileContent(String projectName, String filePath, String content) async {
+    try {
+      final response = await _dio.put(
+        '/api/projects/$projectName/file',
+        data: {
+          'filePath': filePath,
+          'content': content,
+        },
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to save file');
+      }
     } on DioException catch (e) {
       throw Exception(e.response?.data['error'] ?? 'Network error');
     }

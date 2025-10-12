@@ -4,6 +4,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import '../../../core/providers/providers.dart';
 import '../../../data/models/file_item.dart';
+import '../../file_viewer/file_viewer_screen.dart';
 
 class FileBrowser extends HookConsumerWidget {
   const FileBrowser({super.key});
@@ -73,9 +74,11 @@ class FileBrowser extends HookConsumerWidget {
                   if (item.type == 'directory') {
                     toggleDirectory(item.path);
                   } else {
-                    // TODO: Show file viewer
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('File viewer coming soon: ${item.name}')),
+                    // Open file viewer
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => FileViewerScreen(file: item),
+                      ),
                     );
                   }
                 },
