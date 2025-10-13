@@ -10,6 +10,7 @@ import '../../data/models/chat_message.dart';
 import 'widgets/code_block.dart';
 import 'widgets/file_browser.dart';
 import '../git/git_screen.dart';
+import '../terminal/terminal_screen.dart';
 
 class ChatScreen extends HookConsumerWidget {
   const ChatScreen({super.key});
@@ -401,9 +402,15 @@ class ChatScreen extends HookConsumerWidget {
 
           // Git tab
           const GitScreen(),
+
+          // Terminal tab
+          const TerminalScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
         currentIndex: currentTabIndex.value,
         onTap: (index) {
           currentTabIndex.value = index;
@@ -424,6 +431,10 @@ class ChatScreen extends HookConsumerWidget {
           BottomNavigationBarItem(
             icon: Icon(Icons.source),
             label: 'Git',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.terminal),
+            label: 'Terminal',
           ),
         ],
       ),

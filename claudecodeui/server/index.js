@@ -625,8 +625,11 @@ function handleShellConnection(ws) {
                 console.log('🚀 Starting shell in:', projectPath);
                 console.log('📋 Session info:', hasSession ? `Resume session ${sessionId}` : (isPlainShell ? 'Plain shell mode' : 'New session'));
                 console.log('🤖 Provider:', isPlainShell ? 'plain-shell' : provider);
+                console.log('🔍 isPlainShell:', isPlainShell, 'data.isPlainShell:', data.isPlainShell, 'provider:', provider);
                 if (initialCommand) {
                     console.log('⚡ Initial command:', initialCommand);
+                } else {
+                    console.log('⚡ No initial command provided');
                 }
 
                 // First send a welcome message
@@ -648,12 +651,23 @@ function handleShellConnection(ws) {
                 try {
                     // Prepare the shell command adapted to the platform and provider
                     let shellCommand;
+                    let useInteractiveShell = false;
+
                     if (isPlainShell) {
-                        // Plain shell mode - just run the initial command in the project directory
-                        if (os.platform() === 'win32') {
-                            shellCommand = `Set-Location -Path "${projectPath}"; ${initialCommand}`;
+                        // Plain shell mode - spawn interactive shell if no initial command
+                        console.log('🔍 Plain shell mode detected. initialCommand:', initialCommand);
+                        if (initialCommand) {
+                            // Run initial command in project directory
+                            console.log('✅ Has initialCommand, will execute command');
+                            if (os.platform() === 'win32') {
+                                shellCommand = `Set-Location -Path "${projectPath}"; ${initialCommand}`;
+                            } else {
+                                shellCommand = `cd "${projectPath}" && ${initialCommand}`;
+                            }
                         } else {
-                            shellCommand = `cd "${projectPath}" && ${initialCommand}`;
+                            // Just spawn an interactive shell in the project directory
+                            console.log('✅ No initialCommand, using interactive shell');
+                            useInteractiveShell = true;
                         }
                     } else if (provider === 'cursor') {
                         // Use cursor-agent command
@@ -689,26 +703,50 @@ function handleShellConnection(ws) {
                         }
                     }
 
-                    console.log('🔧 Executing shell command:', shellCommand);
-
                     // Use appropriate shell based on platform
-                    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-                    const shellArgs = os.platform() === 'win32' ? ['-Command', shellCommand] : ['-c', shellCommand];
+                    let shell, shellArgs, ptyOptions;
 
-                    shellProcess = pty.spawn(shell, shellArgs, {
-                        name: 'xterm-256color',
-                        cols: 80,
-                        rows: 24,
-                        cwd: process.env.HOME || (os.platform() === 'win32' ? process.env.USERPROFILE : '/'),
-                        env: {
-                            ...process.env,
-                            TERM: 'xterm-256color',
-                            COLORTERM: 'truecolor',
-                            FORCE_COLOR: '3',
-                            // Override browser opening commands to echo URL for detection
-                            BROWSER: os.platform() === 'win32' ? 'echo "OPEN_URL:"' : 'echo "OPEN_URL:"'
-                        }
-                    });
+                    if (useInteractiveShell) {
+                        // Spawn an interactive shell directly in the project directory
+                        console.log('🔧 Starting interactive shell in:', projectPath);
+                        console.log('🔧 useInteractiveShell is TRUE - spawning interactive shell');
+                        shell = os.platform() === 'win32' ? 'powershell.exe' : (process.env.SHELL || 'bash');
+                        shellArgs = os.platform() === 'win32' ? ['-NoExit', '-Command', `Set-Location -Path "${projectPath}"`] : [];
+                        console.log('🔧 Shell:', shell, 'Args:', shellArgs);
+                        ptyOptions = {
+                            name: 'xterm-256color',
+                            cols: data.cols || 80,
+                            rows: data.rows || 24,
+                            cwd: projectPath,  // Start in project directory
+                            env: {
+                                ...process.env,
+                                TERM: 'xterm-256color',
+                                COLORTERM: 'truecolor',
+                                FORCE_COLOR: '3',
+                                BROWSER: os.platform() === 'win32' ? 'echo "OPEN_URL:"' : 'echo "OPEN_URL:"'
+                            }
+                        };
+                    } else {
+                        // Run a specific command
+                        console.log('🔧 Executing shell command:', shellCommand);
+                        shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+                        shellArgs = os.platform() === 'win32' ? ['-Command', shellCommand] : ['-c', shellCommand];
+                        ptyOptions = {
+                            name: 'xterm-256color',
+                            cols: data.cols || 80,
+                            rows: data.rows || 24,
+                            cwd: process.env.HOME || (os.platform() === 'win32' ? process.env.USERPROFILE : '/'),
+                            env: {
+                                ...process.env,
+                                TERM: 'xterm-256color',
+                                COLORTERM: 'truecolor',
+                                FORCE_COLOR: '3',
+                                BROWSER: os.platform() === 'win32' ? 'echo "OPEN_URL:"' : 'echo "OPEN_URL:"'
+                            }
+                        };
+                    }
+
+                    shellProcess = pty.spawn(shell, shellArgs, ptyOptions);
 
                     console.log('🟢 Shell process started with PTY, PID:', shellProcess.pid);
 
