@@ -6,6 +6,7 @@ import '../models/project.dart';
 import '../models/session.dart';
 import '../models/chat_message.dart';
 import '../models/file_item.dart';
+import '../models/git_status.dart';
 import 'storage_service.dart';
 
 class ApiService {
@@ -277,6 +278,115 @@ class ApiService {
       }
       throw Exception('Failed to load config');
     } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  // Git endpoints
+  Future<GitStatus> getGitStatus(String projectName) async {
+    try {
+      final response = await _dio.get(
+        '/api/git/status',
+        queryParameters: {'project': projectName},
+      );
+      if (response.statusCode == 200) {
+        return GitStatus.fromJson(response.data);
+      }
+      throw Exception('Failed to get git status');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  Future<GitDiff> getGitDiff(String projectName, String filePath) async {
+    try {
+      final response = await _dio.get(
+        '/api/git/diff',
+        queryParameters: {
+          'project': projectName,
+          'file': filePath,
+        },
+      );
+      if (response.statusCode == 200) {
+        return GitDiff.fromJson(response.data);
+      }
+      throw Exception('Failed to get git diff');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  Future<void> commitChanges({
+    required String projectName,
+    required String message,
+    required List<String> files,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/git/commit',
+        data: {
+          'project': projectName,
+          'message': message,
+          'files': files,
+        },
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to commit changes');
+      }
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  Future<void> discardChanges({
+    required String projectName,
+    required String filePath,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/git/discard',
+        data: {
+          'project': projectName,
+          'file': filePath,
+        },
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to discard changes');
+      }
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  Future<void> initGit(String projectName) async {
+    try {
+      final response = await _dio.post(
+        '/api/git/init',
+        data: {'project': projectName},
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to initialize git');
+      }
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Network error');
+    }
+  }
+
+  Future<Map<String, dynamic>> pushToRemote(String projectName) async {
+    try {
+      final response = await _dio.post(
+        '/api/git/push',
+        data: {'project': projectName},
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      throw Exception('Failed to push to remote');
+    } on DioException catch (e) {
+      final errorData = e.response?.data;
+      if (errorData != null && errorData is Map) {
+        throw Exception(errorData['details'] ?? errorData['error'] ?? 'Network error');
+      }
       throw Exception(e.response?.data['error'] ?? 'Network error');
     }
   }

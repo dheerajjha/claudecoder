@@ -9,6 +9,7 @@ import '../../core/providers/providers.dart';
 import '../../data/models/chat_message.dart';
 import 'widgets/code_block.dart';
 import 'widgets/file_browser.dart';
+import '../git/git_screen.dart';
 
 class ChatScreen extends HookConsumerWidget {
   const ChatScreen({super.key});
@@ -397,11 +398,20 @@ class ChatScreen extends HookConsumerWidget {
 
           // Files tab
           const FileBrowser(),
+
+          // Git tab
+          const GitScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentTabIndex.value,
-        onTap: (index) => currentTabIndex.value = index,
+        onTap: (index) {
+          currentTabIndex.value = index;
+          // Trigger git refresh when switching to Git tab
+          if (index == 2) {
+            ref.read(gitRefreshProvider.notifier).state++;
+          }
+        },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.chat),
@@ -410,6 +420,10 @@ class ChatScreen extends HookConsumerWidget {
           BottomNavigationBarItem(
             icon: Icon(Icons.folder),
             label: 'Files',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.source),
+            label: 'Git',
           ),
         ],
       ),

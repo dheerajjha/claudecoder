@@ -56,13 +56,26 @@ router.get('/status', async (req, res) => {
 
   try {
     const projectPath = await getActualProjectPath(project);
-    
+
     // Validate git repository
     await validateGitRepository(projectPath);
 
-    // Get current branch
-    const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: projectPath });
-    
+    // Get current branch (handle case where there are no commits yet)
+    let branch = 'main'; // default branch name
+    try {
+      const { stdout: branchOutput } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: projectPath });
+      branch = branchOutput.trim();
+    } catch (error) {
+      // If HEAD doesn't exist yet (no commits), try to get the default branch name
+      try {
+        const { stdout: symbolicRef } = await execAsync('git symbolic-ref HEAD', { cwd: projectPath });
+        branch = symbolicRef.trim().replace('refs/heads/', '');
+      } catch {
+        // Fallback to 'main' if we can't determine the branch
+        branch = 'main';
+      }
+    }
+
     // Get git status
     const { stdout: statusOutput } = await execAsync('git status --porcelain', { cwd: projectPath });
     
@@ -97,13 +110,12 @@ router.get('/status', async (req, res) => {
     });
   } catch (error) {
     console.error('Git status error:', error);
-    res.json({ 
-      error: error.message.includes('not a git repository') || error.message.includes('Project directory is not a git repository') 
-        ? error.message 
-        : 'Git operation failed',
-      details: error.message.includes('not a git repository') || error.message.includes('Project directory is not a git repository')
-        ? error.message
-        : `Failed to get git status: ${error.message}`
+    const errorLower = error.message.toLowerCase();
+    const isGitError = errorLower.includes('not a git repository') || errorLower.includes('project directory is not a git repository');
+
+    res.json({
+      error: isGitError ? error.message : 'Git operation failed',
+      details: isGitError ? error.message : `Failed to get git status: ${error.message}`
     });
   }
 });
@@ -788,7 +800,7 @@ router.post('/discard', async (req, res) => {
 // Delete untracked file
 router.post('/delete-untracked', async (req, res) => {
   const { project, file } = req.body;
-  
+
   if (!project || !file) {
     return res.status(400).json({ error: 'Project name and file path are required' });
   }
@@ -799,23 +811,63 @@ router.post('/delete-untracked', async (req, res) => {
 
     // Check if file is actually untracked
     const { stdout: statusOutput } = await execAsync(`git status --porcelain "${file}"`, { cwd: projectPath });
-    
+
     if (!statusOutput.trim()) {
       return res.status(400).json({ error: 'File is not untracked or does not exist' });
     }
 
     const status = statusOutput.substring(0, 2);
-    
+
     if (status !== '??') {
       return res.status(400).json({ error: 'File is not untracked. Use discard for tracked files.' });
     }
 
     // Delete the untracked file
     await fs.unlink(path.join(projectPath, file));
-    
+
     res.json({ success: true, message: `Untracked file ${file} deleted successfully` });
   } catch (error) {
     console.error('Git delete untracked error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Initialize git repository
+router.post('/init', async (req, res) => {
+  const { project } = req.body;
+
+  if (!project) {
+    return res.status(400).json({ error: 'Project name is required' });
+  }
+
+  try {
+    const projectPath = await getActualProjectPath(project);
+
+    // Check if directory exists
+    try {
+      await fs.access(projectPath);
+    } catch {
+      return res.status(404).json({ error: `Project path not found: ${projectPath}` });
+    }
+
+    // Check if already a git repository
+    try {
+      await execAsync('git rev-parse --git-dir', { cwd: projectPath });
+      return res.status(400).json({ error: 'Git repository already initialized' });
+    } catch (error) {
+      // Not a git repo, proceed with initialization
+    }
+
+    // Initialize git repository
+    const { stdout } = await execAsync('git init', { cwd: projectPath });
+
+    res.json({
+      success: true,
+      message: 'Git repository initialized successfully',
+      output: stdout
+    });
+  } catch (error) {
+    console.error('Git init error:', error);
     res.status(500).json({ error: error.message });
   }
 });
