@@ -1,88 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+
 import '../../../core/providers/providers.dart';
+import '../../../shared/controllers/file_tree_controller.dart';
+import '../../../shared/models/file_tree_node.dart';
+import '../../../shared/widgets/file_tree_view.dart';
 
-class DirectoryBrowser extends HookConsumerWidget {
-  final Function(String) onDirectorySelected;
+final _directoryBrowserControllerProvider =
+    StateNotifierProvider.autoDispose<FileTreeController, FileTreeState>((ref) {
+      final apiService = ref.watch(apiServiceProvider);
 
-  const DirectoryBrowser({
-    super.key,
-    required this.onDirectorySelected,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentPath = useState<String?>(null);
-    final directories = useState<List<Map<String, dynamic>>>([]);
-    final isLoading = useState(false);
-    final breadcrumbs = useState<List<String>>([]);
-    final isCreating = useState(false);
-
-    Future<void> loadDirectory(String? path) async {
-      isLoading.value = true;
-      try {
-        final apiService = ref.read(apiServiceProvider);
+      final controller = FileTreeController((path) async {
         final result = await apiService.browseFilesystem(path: path);
-
-        currentPath.value = result['path'] as String;
-        directories.value = List<Map<String, dynamic>>.from(
+        final currentPath = result['path']?.toString();
+        final suggestions = List<Map<String, dynamic>>.from(
           result['suggestions'] ?? [],
         );
 
-        // Build breadcrumbs from current path
-        if (currentPath.value != null) {
-          final parts = currentPath.value!.split('/');
-          breadcrumbs.value = parts.where((p) => p.isNotEmpty).toList();
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to browse directory: $e')),
-          );
-        }
-      } finally {
-        isLoading.value = false;
-      }
-    }
+        final nodes = suggestions
+            .map(
+              (entry) => FileTreeNode(
+                id:
+                    entry['path']?.toString() ??
+                    entry['name']?.toString() ??
+                    '',
+                name:
+                    entry['name']?.toString() ??
+                    entry['path']?.toString() ??
+                    '',
+                isDirectory: true,
+                metadata: entry,
+              ),
+            )
+            .toList(growable: false);
 
-    // Load home directory on first build
-    useEffect(() {
-      loadDirectory(null);
-      return null;
-    }, []);
+        return FileTreeLoadResult(
+          nodes: nodes,
+          currentPath: currentPath,
+          breadcrumbs: _buildBreadcrumbs(currentPath),
+        );
+      });
 
-    void navigateToPath(String path) {
-      loadDirectory(path);
-    }
+      Future.microtask(controller.refresh);
+      return controller;
+    });
 
-    void navigateToBreadcrumb(int index) {
-      // Rebuild path from breadcrumbs up to this index
-      final pathParts = breadcrumbs.value.sublist(0, index + 1);
-      final path = '/${pathParts.join('/')}';
-      loadDirectory(path);
-    }
+class DirectoryBrowser extends HookConsumerWidget {
+  final void Function(String) onDirectorySelected;
 
-    void goUp() {
-      if (currentPath.value != null && currentPath.value != '/') {
-        final parts = currentPath.value!.split('/');
-        parts.removeLast();
-        final parentPath = parts.isEmpty || parts.join('/').isEmpty
-            ? '/'
-            : parts.join('/');
-        loadDirectory(parentPath);
-      }
-    }
+  const DirectoryBrowser({super.key, required this.onDirectorySelected});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final treeState = ref.watch(_directoryBrowserControllerProvider);
+    final controller = ref.watch(_directoryBrowserControllerProvider.notifier);
+    final isCreating = useState(false);
 
     Future<void> showCreateFolderDialog() async {
-      final controller = TextEditingController();
+      final textController = TextEditingController();
       final result = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Create New Folder', style: TextStyle(fontSize: 16)),
+          title: const Text(
+            'Create New Folder',
+            style: TextStyle(fontSize: 16),
+          ),
           content: TextField(
-            controller: controller,
+            controller: textController,
             autofocus: true,
             decoration: const InputDecoration(
               hintText: 'Folder name',
@@ -102,8 +88,8 @@ class DirectoryBrowser extends HookConsumerWidget {
             ),
             FilledButton(
               onPressed: () {
-                if (controller.text.trim().isNotEmpty) {
-                  Navigator.of(context).pop(controller.text.trim());
+                if (textController.text.trim().isNotEmpty) {
+                  Navigator.of(context).pop(textController.text.trim());
                 }
               },
               child: const Text('Create', style: TextStyle(fontSize: 12)),
@@ -112,20 +98,20 @@ class DirectoryBrowser extends HookConsumerWidget {
         ),
       );
 
-      if (result != null && currentPath.value != null) {
+      final targetPath = treeState.currentPath;
+      if (result != null && targetPath != null) {
         isCreating.value = true;
         try {
           final apiService = ref.read(apiServiceProvider);
           await apiService.createDirectory(
-            parentPath: currentPath.value!,
+            parentPath: targetPath,
             dirName: result,
           );
-          // Reload directory to show new folder
-          await loadDirectory(currentPath.value);
-        } catch (e) {
+          await controller.refresh(targetPath);
+        } catch (error) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to create folder: $e')),
+              SnackBar(content: Text('Failed to create folder: $error')),
             );
           }
         } finally {
@@ -134,10 +120,22 @@ class DirectoryBrowser extends HookConsumerWidget {
       }
     }
 
+    void goUp() {
+      final path = treeState.currentPath;
+      if (path == null || path == '/') return;
+      final parent = _parentPath(path);
+      controller.refresh(parent.isEmpty ? '/' : parent);
+    }
+
+    void navigateToBreadcrumb(int index) {
+      final pathParts = treeState.breadcrumbs.take(index + 1).toList();
+      final path = '/${pathParts.join('/')}';
+      controller.refresh(path);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Breadcrumbs and navigation - compact
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
@@ -146,35 +144,41 @@ class DirectoryBrowser extends HookConsumerWidget {
           ),
           child: Row(
             children: [
-              // Up button
-              if (currentPath.value != null && currentPath.value != '/')
+              if (treeState.currentPath != null && treeState.currentPath != '/')
                 IconButton(
                   icon: const Icon(Icons.arrow_upward, size: 16),
                   onPressed: goUp,
                   tooltip: 'Go up',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
                   iconSize: 16,
                 ),
               const Gap(4),
-              // Breadcrumbs
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
                       InkWell(
-                        onTap: () => loadDirectory(null),
+                        onTap: () => controller.refresh(null),
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 3,
+                            vertical: 2,
+                          ),
                           child: Icon(Icons.home, size: 14),
                         ),
                       ),
-                      if (breadcrumbs.value.isNotEmpty) ...[
+                      if (treeState.breadcrumbs.isNotEmpty) ...[
                         const Icon(Icons.chevron_right, size: 12),
-                        ...breadcrumbs.value.asMap().entries.map((entry) {
+                        ...treeState.breadcrumbs.asMap().entries.map((entry) {
                           final index = entry.key;
                           final part = entry.value;
+                          final isLast =
+                              index == treeState.breadcrumbs.length - 1;
                           return Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -189,17 +193,19 @@ class DirectoryBrowser extends HookConsumerWidget {
                                     part,
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: index == breadcrumbs.value.length - 1
-                                          ? Theme.of(context).colorScheme.primary
+                                      color: isLast
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.primary
                                           : null,
-                                      fontWeight: index == breadcrumbs.value.length - 1
+                                      fontWeight: isLast
                                           ? FontWeight.bold
                                           : FontWeight.normal,
                                     ),
                                   ),
                                 ),
                               ),
-                              if (index < breadcrumbs.value.length - 1)
+                              if (!isLast)
                                 const Icon(Icons.chevron_right, size: 12),
                             ],
                           );
@@ -213,29 +219,57 @@ class DirectoryBrowser extends HookConsumerWidget {
           ),
         ),
         const Gap(8),
-
-        // Action buttons row - compact
+        if (treeState.errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Error: ${treeState.errorMessage}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          controller.refresh(treeState.currentPath),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         Row(
           children: [
             Expanded(
               child: FilledButton.icon(
-                onPressed: currentPath.value != null && !isCreating.value
-                    ? () => onDirectorySelected(currentPath.value!)
+                onPressed: treeState.currentPath != null && !isCreating.value
+                    ? () => onDirectorySelected(treeState.currentPath!)
                     : null,
                 icon: const Icon(Icons.check, size: 14),
-                label: Text(
+                label: const Text(
                   'Select Current',
-                  style: const TextStyle(fontSize: 11),
+                  style: TextStyle(fontSize: 11),
                 ),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   minimumSize: const Size(0, 32),
                 ),
               ),
             ),
             const Gap(8),
             FilledButton.icon(
-              onPressed: currentPath.value != null && !isCreating.value
+              onPressed: treeState.currentPath != null && !isCreating.value
                   ? showCreateFolderDialog
                   : null,
               icon: isCreating.value
@@ -245,58 +279,58 @@ class DirectoryBrowser extends HookConsumerWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.create_new_folder, size: 14),
-              label: Text(
-                'New Folder',
-                style: const TextStyle(fontSize: 11),
-              ),
+              label: const Text('New Folder', style: TextStyle(fontSize: 11)),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 minimumSize: const Size(0, 32),
               ),
             ),
           ],
         ),
         const Gap(8),
-
-        // Directory list - compact
         Expanded(
-          child: isLoading.value
-              ? const Center(child: CircularProgressIndicator())
-              : directories.value.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No subdirectories',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: directories.value.length,
-                      itemBuilder: (context, index) {
-                        final dir = directories.value[index];
-                        return ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 2,
-                          ),
-                          leading: const Icon(Icons.folder, size: 18),
-                          title: Text(
-                            dir['name'] ?? '',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          subtitle: Text(
-                            dir['path'] ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                          onTap: () => navigateToPath(dir['path']),
-                          trailing: const Icon(Icons.chevron_right, size: 16),
-                        );
-                      },
-                    ),
+          child: Stack(
+            children: [
+              FileTreeView(
+                nodes: treeState.nodes,
+                expandedNodeIds: treeState.expandedNodeIds,
+                onToggleNode: controller.toggleNode,
+                emptyLabel: 'No subdirectories',
+                onDirectoryTap: (node) {
+                  final data = node.metadata as Map<String, dynamic>?;
+                  final path = data?['path']?.toString();
+                  if (path != null) {
+                    controller.refresh(path);
+                    return true;
+                  }
+                  return false;
+                },
+              ),
+              if (treeState.isLoading)
+                const Align(
+                  alignment: Alignment.center,
+                  child: CircularProgressIndicator(),
+                ),
+            ],
+          ),
         ),
       ],
     );
   }
+}
+
+List<String> _buildBreadcrumbs(String? currentPath) {
+  if (currentPath == null || currentPath.isEmpty) {
+    return const [];
+  }
+  final parts = currentPath.split('/');
+  return parts.where((part) => part.isNotEmpty).toList();
+}
+
+String _parentPath(String path) {
+  final segments = path.split('/')..removeLast();
+  return segments.where((part) => part.isNotEmpty).join('/');
 }

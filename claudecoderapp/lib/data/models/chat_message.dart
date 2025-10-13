@@ -51,7 +51,10 @@ class ChatMessage with _$ChatMessage {
         }
 
         return ChatMessage(
-          id: json['uuid']?.toString() ?? json['sessionId']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          id:
+              json['uuid']?.toString() ??
+              json['sessionId']?.toString() ??
+              DateTime.now().millisecondsSinceEpoch.toString(),
           role: role,
           content: content,
           timestamp: json['timestamp']?.toString(),

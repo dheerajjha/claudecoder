@@ -45,15 +45,9 @@ class GitDiff {
   final String diff;
   final String? error;
 
-  GitDiff({
-    required this.diff,
-    this.error,
-  });
+  GitDiff({required this.diff, this.error});
 
   factory GitDiff.fromJson(Map<String, dynamic> json) {
-    return GitDiff(
-      diff: json['diff'] ?? '',
-      error: json['error'],
-    );
+    return GitDiff(diff: json['diff'] ?? '', error: json['error']);
   }
 }

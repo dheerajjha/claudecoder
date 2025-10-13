@@ -204,7 +204,10 @@ class TerminalScreen extends HookConsumerWidget {
             children: [
               // Connection status bar
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.3),
                   border: Border(
@@ -220,8 +223,15 @@ class TerminalScreen extends HookConsumerWidget {
                     ),
                     const Gap(8),
                     Text(
-                      isConnected.value ? 'Connected' : (isConnecting.value ? 'Connecting...' : 'Disconnected'),
-                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                      isConnected.value
+                          ? 'Connected'
+                          : (isConnecting.value
+                                ? 'Connecting...'
+                                : 'Disconnected'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
                     ),
                   ],
                 ),
@@ -256,7 +266,7 @@ class TerminalScreen extends HookConsumerWidget {
                     searchHitBackgroundCurrent: Color(0xFFFF8C00),
                     searchHitForeground: Color(0xFF000000),
                   ),
-                  autofocus: true,  // Auto-focus for direct typing
+                  autofocus: true, // Auto-focus for direct typing
                   textScaler: TextScaler.noScaling,
                   padding: const EdgeInsets.all(8),
                 ),

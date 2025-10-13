@@ -8,11 +8,7 @@ class CodeBlock extends StatefulWidget {
   final String code;
   final String? language;
 
-  const CodeBlock({
-    super.key,
-    required this.code,
-    this.language,
-  });
+  const CodeBlock({super.key, required this.code, this.language});
 
   @override
   State<CodeBlock> createState() => _CodeBlockState();
@@ -51,7 +47,9 @@ class _CodeBlockState extends State<CodeBlock> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF2d2d2d) : const Color(0xFFe6ebf1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(7),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -76,14 +74,20 @@ class _CodeBlockState extends State<CodeBlock> {
                         Icon(
                           _copied ? Icons.check : Icons.copy,
                           size: 16,
-                          color: _copied ? Colors.green : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                          color: _copied
+                              ? Colors.green
+                              : (isDark ? Colors.grey[400] : Colors.grey[700]),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           _copied ? 'Copied!' : 'Copy',
                           style: TextStyle(
                             fontSize: 12,
-                            color: _copied ? Colors.green : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                            color: _copied
+                                ? Colors.green
+                                : (isDark
+                                      ? Colors.grey[400]
+                                      : Colors.grey[700]),
                           ),
                         ),
                       ],
@@ -102,10 +106,7 @@ class _CodeBlockState extends State<CodeBlock> {
               language: widget.language ?? 'plaintext',
               theme: theme,
               padding: EdgeInsets.zero,
-              textStyle: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 14,
-              ),
+              textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 14),
             ),
           ),
         ],

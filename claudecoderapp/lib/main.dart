@@ -3,11 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'core/router/app_router.dart';
 
 void main() {
-  runApp(
-    const ProviderScope(
-      child: ClaudeCoderApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: ClaudeCoderApp()));
 }
 
 class ClaudeCoderApp extends ConsumerWidget {
@@ -26,10 +22,7 @@ class ClaudeCoderApp extends ConsumerWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-        ),
+        appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -37,10 +30,7 @@ class ClaudeCoderApp extends ConsumerWidget {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-        ),
+        appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
       ),
       themeMode: ThemeMode.system,
       routerConfig: router,

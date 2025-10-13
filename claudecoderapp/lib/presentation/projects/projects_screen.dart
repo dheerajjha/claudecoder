@@ -33,9 +33,7 @@ class ProjectsScreen extends ConsumerWidget {
       body: projectsAsync.when(
         data: (projects) {
           if (projects.isEmpty) {
-            return const Center(
-              child: Text('No projects found'),
-            );
+            return const Center(child: Text('No projects found'));
           }
 
           return ListView.builder(
@@ -74,7 +72,8 @@ class ProjectsScreen extends ConsumerWidget {
                   ),
                   onExpansionChanged: (expanded) {
                     if (expanded) {
-                      ref.read(selectedProjectProvider.notifier).state = project;
+                      ref.read(selectedProjectProvider.notifier).state =
+                          project;
                     }
                   },
                   children: [
@@ -84,18 +83,20 @@ class ProjectsScreen extends ConsumerWidget {
                         child: Text('No sessions found'),
                       )
                     else
-                      ...project.sessions.map((session) => SessionTile(
-                            session: session,
-                            project: project,
-                          )),
+                      ...project.sessions.map(
+                        (session) =>
+                            SessionTile(session: session, project: project),
+                      ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextButton.icon(
                         icon: const Icon(Icons.add),
                         label: const Text('New Session'),
                         onPressed: () {
-                          ref.read(selectedProjectProvider.notifier).state = project;
-                          ref.read(selectedSessionProvider.notifier).state = null;
+                          ref.read(selectedProjectProvider.notifier).state =
+                              project;
+                          ref.read(selectedSessionProvider.notifier).state =
+                              null;
                           context.go('/chat');
                         },
                       ),
@@ -189,9 +190,9 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
         setState(() {
           _isCreating = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create project: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to create project: $e')));
       }
     }
   }
@@ -215,9 +216,14 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
-                  onPressed: _isCreating ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isCreating
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                 ),
               ],
             ),
@@ -261,7 +267,9 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                             'Selected:',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                             ),
                           ),
                           Text(
@@ -269,7 +277,9 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -288,18 +298,28 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: _isCreating ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isCreating
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     minimumSize: const Size(0, 32),
                   ),
                   child: const Text('Cancel', style: TextStyle(fontSize: 12)),
                 ),
                 const Gap(8),
                 FilledButton(
-                  onPressed: _selectedPath == null || _isCreating ? null : _createProject,
+                  onPressed: _selectedPath == null || _isCreating
+                      ? null
+                      : _createProject,
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     minimumSize: const Size(0, 32),
                   ),
                   child: _isCreating
@@ -308,7 +328,10 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                           height: 14,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Create Project', style: TextStyle(fontSize: 12)),
+                      : const Text(
+                          'Create Project',
+                          style: TextStyle(fontSize: 12),
+                        ),
                 ),
               ],
             ),
@@ -319,15 +342,11 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
   }
 }
 
-class SessionTile extends ConsumerWidget{
+class SessionTile extends ConsumerWidget {
   final Session session;
   final Project project;
 
-  const SessionTile({
-    super.key,
-    required this.session,
-    required this.project,
-  });
+  const SessionTile({super.key, required this.session, required this.project});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -341,8 +360,8 @@ class SessionTile extends ConsumerWidget{
         session.lastActivity != null
             ? timeago.format(DateTime.parse(session.lastActivity!))
             : (session.createdAt != null
-                ? timeago.format(DateTime.parse(session.createdAt!))
-                : 'No date'),
+                  ? timeago.format(DateTime.parse(session.createdAt!))
+                  : 'No date'),
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: session.messageCount != null

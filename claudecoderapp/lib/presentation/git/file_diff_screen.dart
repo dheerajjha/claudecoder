@@ -34,13 +34,16 @@ class FileDiffScreen extends HookConsumerWidget {
 
       try {
         final apiService = ref.read(apiServiceProvider);
-        final diff = await apiService.getGitDiff(selectedProject.name, files[index]);
+        final diff = await apiService.getGitDiff(
+          selectedProject.name,
+          files[index],
+        );
         fileDiff.value = diff.diff;
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load diff: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to load diff: $e')));
         }
       } finally {
         isLoading.value = false;
@@ -57,7 +60,9 @@ class FileDiffScreen extends HookConsumerWidget {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Discard Changes'),
-          content: Text('Are you sure you want to discard changes in $currentFile?'),
+          content: Text(
+            'Are you sure you want to discard changes in $currentFile?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -81,9 +86,9 @@ class FileDiffScreen extends HookConsumerWidget {
         );
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Changes discarded')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Changes discarded')));
           Navigator.pop(context, true); // Return true to trigger refresh
         }
       } catch (e) {
@@ -170,7 +175,10 @@ class FileDiffScreen extends HookConsumerWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),

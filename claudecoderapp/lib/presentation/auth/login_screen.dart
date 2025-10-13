@@ -24,10 +24,9 @@ class LoginScreen extends HookConsumerWidget {
       errorMessage.value = null;
 
       try {
-        await ref.read(authStateProvider.notifier).login(
-              usernameController.text,
-              passwordController.text,
-            );
+        await ref
+            .read(authStateProvider.notifier)
+            .login(usernameController.text, passwordController.text);
         // Successful login - widget will be unmounted by router
       } catch (e) {
         // Only update UI if still mounted (login failed)
@@ -59,16 +58,16 @@ class LoginScreen extends HookConsumerWidget {
                   Text(
                     'Claude Coder',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const Gap(8),
                   Text(
                     'AI-Powered Code Assistant',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const Gap(48),
@@ -139,8 +138,8 @@ class LoginScreen extends HookConsumerWidget {
                   Text(
                     'Default credentials: admin / admin',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+
 import '../../core/providers/providers.dart';
 import '../../data/models/git_status.dart';
+import 'controller/git_controller.dart';
 import 'file_diff_screen.dart';
 
 class GitScreen extends HookConsumerWidget {
@@ -11,194 +13,70 @@ class GitScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedProject = ref.watch(selectedProjectProvider);
-    final gitStatus = useState<GitStatus?>(null);
-    final isLoading = useState(false);
-    final isInitializing = useState(false);
-    final selectedFiles = useState<Set<String>>({});
-    final commitMessage = useTextEditingController();
-    final isCommitting = useState(false);
-    final isPushing = useState(false);
-    final hasCommitMessage = useState(false);
+    final project = ref.watch(selectedProjectProvider);
 
-    // Listen to commit message changes
+    if (project == null) {
+      return const Scaffold(body: Center(child: Text('No project selected')));
+    }
+
+    final controllerProvider = gitControllerProvider(project);
+    final gitState = ref.watch(controllerProvider);
+    final controller = ref.watch(controllerProvider.notifier);
+
+    final commitController = useTextEditingController(
+      text: gitState.commitMessage,
+    );
+
     useEffect(() {
-      void listener() {
-        hasCommitMessage.value = commitMessage.text.trim().isNotEmpty;
-      }
-      commitMessage.addListener(listener);
-      return () => commitMessage.removeListener(listener);
-    }, [commitMessage]);
-
-    Future<void> loadGitStatus() async {
-      if (selectedProject == null) return;
-
-      isLoading.value = true;
-      try {
-        final apiService = ref.read(apiServiceProvider);
-        final status = await apiService.getGitStatus(selectedProject.name);
-        gitStatus.value = status;
-
-        print('🔍 Git Status loaded:');
-        print('  - Branch: ${status.branch}');
-        print('  - Error: ${status.error}');
-        print('  - Has changes: ${status.hasChanges}');
-        print('  - Modified: ${status.modified.length}');
-        print('  - Added: ${status.added.length}');
-        print('  - Deleted: ${status.deleted.length}');
-        print('  - Untracked: ${status.untracked.length}');
-
-        if (status.error != null) {
-          print('  - Error message: "${status.error}"');
-          print('  - Contains "not a git repository" (lowercase): ${status.error!.toLowerCase().contains('not a git repository')}');
-          print('  - Should show init button: ${status.error!.toLowerCase().contains('not a git repository')}');
-        }
-
-        // Auto-select all changed files
-        if (status.error == null && status.hasChanges) {
-          final allFiles = <String>{
-            ...status.modified,
-            ...status.added,
-            ...status.deleted,
-            ...status.untracked,
-          };
-          selectedFiles.value = allFiles;
-          print('  - Auto-selected ${allFiles.length} files');
-        }
-      } catch (e) {
-        print('❌ Error loading git status: $e');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load git status: $e')),
-          );
-        }
-      } finally {
-        isLoading.value = false;
-      }
-    }
-
-    Future<void> initializeGit() async {
-      if (selectedProject == null) return;
-
-      isInitializing.value = true;
-      try {
-        final apiService = ref.read(apiServiceProvider);
-        await apiService.initGit(selectedProject.name);
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Git initialized successfully')),
-          );
-        }
-
-        // Reload git status
-        await loadGitStatus();
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to initialize git: $e')),
-          );
-        }
-      } finally {
-        isInitializing.value = false;
-      }
-    }
-
-    Future<void> commitChanges() async {
-      if (selectedProject == null || commitMessage.text.trim().isEmpty || selectedFiles.value.isEmpty) {
-        return;
-      }
-
-      isCommitting.value = true;
-      try {
-        final apiService = ref.read(apiServiceProvider);
-        await apiService.commitChanges(
-          projectName: selectedProject.name,
-          message: commitMessage.text.trim(),
-          files: selectedFiles.value.toList(),
+      if (commitController.text != gitState.commitMessage) {
+        commitController.text = gitState.commitMessage;
+        commitController.selection = TextSelection.fromPosition(
+          TextPosition(offset: commitController.text.length),
         );
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Changes committed successfully')),
-          );
-        }
-
-        // Clear commit message and reload status
-        commitMessage.clear();
-        selectedFiles.value = {};
-        await loadGitStatus();
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to commit changes: $e')),
-          );
-        }
-      } finally {
-        isCommitting.value = false;
       }
-    }
+      return null;
+    }, [gitState.commitMessage, commitController]);
 
-    Future<void> pushToRemote() async {
-      if (selectedProject == null) return;
+    useEffect(() {
+      void listener() => controller.setCommitMessage(commitController.text);
+      commitController.addListener(listener);
+      return () => commitController.removeListener(listener);
+    }, [commitController, controller]);
 
-      isPushing.value = true;
-      try {
-        final apiService = ref.read(apiServiceProvider);
-        final result = await apiService.pushToRemote(selectedProject.name);
+    ref.listen<int>(gitRefreshProvider, (_, __) => controller.refresh());
 
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['output'] ?? 'Pushed successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-
-        // Reload git status to update ahead count
-        await loadGitStatus();
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Push failed: $e'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
-      } finally {
-        isPushing.value = false;
+    useEffect(() {
+      if (gitState.errorMessage != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(gitState.errorMessage!)));
+            controller.clearMessages();
+          }
+        });
+      } else if (gitState.infoMessage != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(gitState.infoMessage!),
+                backgroundColor: Colors.green,
+              ),
+            );
+            controller.clearMessages();
+          }
+        });
       }
-    }
+      return null;
+    }, [gitState.errorMessage, gitState.infoMessage, controller]);
 
-    void toggleFileSelection(String filePath) {
-      final newSet = Set<String>.from(selectedFiles.value);
-      if (newSet.contains(filePath)) {
-        newSet.remove(filePath);
-      } else {
-        newSet.add(filePath);
-      }
-      selectedFiles.value = newSet;
-    }
-
-    void selectAllFiles() {
-      if (gitStatus.value == null) return;
-      final allFiles = <String>{
-        ...gitStatus.value!.modified,
-        ...gitStatus.value!.added,
-        ...gitStatus.value!.deleted,
-        ...gitStatus.value!.untracked,
-      };
-      selectedFiles.value = allFiles;
-    }
-
-    void deselectAllFiles() {
-      selectedFiles.value = {};
-    }
-
-    Future<void> openFileDiff(List<String> files, int index, String category, String color) async {
+    Future<void> openFileDiff(
+      List<String> files,
+      int index,
+      String category,
+      Color color,
+    ) async {
       final shouldRefresh = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -206,32 +84,17 @@ class GitScreen extends HookConsumerWidget {
             files: files,
             initialIndex: index,
             category: category,
-            categoryColor: color,
+            categoryColor: _colorToName(color),
           ),
         ),
       );
 
-      // Reload git status if changes were discarded
       if (shouldRefresh == true) {
-        await loadGitStatus();
+        await controller.refresh();
       }
     }
 
-
-    // Watch git refresh trigger
-    final gitRefreshTrigger = ref.watch(gitRefreshProvider);
-
-    // Load git status on mount, when project changes, or when refresh is triggered
-    useEffect(() {
-      loadGitStatus();
-      return null;
-    }, [selectedProject, gitRefreshTrigger]);
-
-    if (selectedProject == null) {
-      return const Scaffold(
-        body: Center(child: Text('No project selected')),
-      );
-    }
+    final status = gitState.status;
 
     return Scaffold(
       appBar: AppBar(
@@ -239,76 +102,77 @@ class GitScreen extends HookConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Git Changes', style: TextStyle(fontSize: 16)),
-            if (gitStatus.value != null && gitStatus.value!.error == null)
-              Text(
-                gitStatus.value!.branch,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+            if (status != null && status.error == null)
+              Text(status.branch, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
-            onPressed: isLoading.value ? null : loadGitStatus,
+            onPressed: gitState.isLoading ? null : controller.refresh,
           ),
         ],
       ),
       body: Builder(
         builder: (context) {
-          print('🎨 Building Git Screen UI:');
-          print('  - isLoading: ${isLoading.value}');
-          print('  - gitStatus: ${gitStatus.value}');
-          print('  - gitStatus.error: ${gitStatus.value?.error}');
-
-          if (isLoading.value) {
-            print('  → Showing loading indicator');
+          if (gitState.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (gitStatus.value?.error != null) {
-            print('  → Showing error state');
-            print('  → Error message: "${gitStatus.value!.error}"');
-            final shouldShowButton = gitStatus.value!.error!.toLowerCase().contains('not a git repository');
-            print('  → Should show init button: $shouldShowButton');
+          if (status == null) {
+            return const Center(child: Text('Unable to load git status'));
+          }
 
+          if (status.error != null) {
+            final shouldShowInit = status.error!.toLowerCase().contains(
+              'not a git repository',
+            );
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.source_outlined, size: 64, color: Colors.orange),
+                    const Icon(
+                      Icons.source_outlined,
+                      size: 64,
+                      color: Colors.orange,
+                    ),
                     const Gap(16),
                     Text(
-                      gitStatus.value!.error!,
+                      status.error!,
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 14),
                     ),
                     const Gap(24),
-                    if (shouldShowButton) ...[
+                    if (shouldShowInit)
                       FilledButton.icon(
-                        onPressed: isInitializing.value ? null : initializeGit,
-                        icon: isInitializing.value
+                        onPressed: gitState.isInitializing
+                            ? null
+                            : controller.initializeGit,
+                        icon: gitState.isInitializing
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.add),
-                        label: Text(isInitializing.value ? 'Initializing...' : 'Initialize Git'),
+                        label: Text(
+                          gitState.isInitializing
+                              ? 'Initializing...'
+                              : 'Initialize Git',
+                        ),
                       ),
-                    ] else
-                      Text('Button condition not met', style: TextStyle(color: Colors.red, fontSize: 10)),
                   ],
                 ),
               ),
             );
           }
 
-          print('  → Showing changes/no changes state');
-
-          if (gitStatus.value == null || !gitStatus.value!.hasChanges) {
+          if (!status.hasChanges) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -320,10 +184,10 @@ class GitScreen extends HookConsumerWidget {
                   ),
                   const Gap(16),
                   const Text('No changes'),
-                  if (gitStatus.value?.hasUnpushedCommits == true) ...[
+                  if (status.hasUnpushedCommits) ...[
                     const Gap(8),
                     Text(
-                      '${gitStatus.value!.ahead} unpushed commit${gitStatus.value!.ahead != 1 ? 's' : ''}',
+                      '${status.ahead} unpushed commit${status.ahead == 1 ? '' : 's'}',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.orange.shade700,
@@ -331,18 +195,25 @@ class GitScreen extends HookConsumerWidget {
                     ),
                     const Gap(16),
                     FilledButton.icon(
-                      onPressed: isPushing.value ? null : pushToRemote,
+                      onPressed: gitState.isPushing
+                          ? null
+                          : controller.pushToRemote,
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.blue,
                       ),
-                      icon: isPushing.value
+                      icon: gitState.isPushing
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.cloud_upload),
-                      label: Text(isPushing.value ? 'Pushing...' : 'Push to Remote'),
+                      label: Text(
+                        gitState.isPushing ? 'Pushing...' : 'Push to Remote',
+                      ),
                     ),
                   ],
                 ],
@@ -350,222 +221,225 @@ class GitScreen extends HookConsumerWidget {
             );
           }
 
+          final sections = _buildSections(status);
+
           return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surfaceVariant.withOpacity(0.5),
+                  border: Border(
+                    bottom: BorderSide(color: Theme.of(context).dividerColor),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: commitController,
+                      decoration: const InputDecoration(
+                        hintText: 'Commit message',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(12),
+                      ),
+                      maxLines: 2,
+                    ),
+                    const Gap(8),
+                    Row(
                       children: [
-                        // Commit message area
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-                            border: Border(
-                              bottom: BorderSide(color: Theme.of(context).dividerColor),
+                        Text(
+                          '${gitState.selectedFiles.length} file${gitState.selectedFiles.length == 1 ? '' : 's'} selected',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const Spacer(),
+                        if (status.hasUnpushedCommits) ...[
+                          FilledButton.icon(
+                            onPressed: gitState.isPushing
+                                ? null
+                                : controller.pushToRemote,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.blue,
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              TextField(
-                                controller: commitMessage,
-                                decoration: const InputDecoration(
-                                  hintText: 'Commit message',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.all(12),
-                                ),
-                                maxLines: 2,
-                              ),
-                              const Gap(8),
-                              Row(
-                                children: [
-                                  Text(
-                                    '${selectedFiles.value.length} file${selectedFiles.value.length != 1 ? 's' : ''} selected',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  const Spacer(),
-                                  if (gitStatus.value?.hasUnpushedCommits == true) ...[
-                                    FilledButton.icon(
-                                      onPressed: isPushing.value ? null : pushToRemote,
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                      ),
-                                      icon: isPushing.value
-                                          ? const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(strokeWidth: 2),
-                                            )
-                                          : const Icon(Icons.cloud_upload, size: 18),
-                                      label: Text(isPushing.value ? 'Pushing...' : 'Push'),
+                            icon: gitState.isPushing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
-                                    const Gap(8),
-                                  ],
-                                  FilledButton.icon(
-                                    onPressed: !hasCommitMessage.value ||
-                                              selectedFiles.value.isEmpty ||
-                                              isCommitting.value
-                                        ? null
-                                        : commitChanges,
-                                    icon: isCommitting.value
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          )
-                                        : const Icon(Icons.check, size: 18),
-                                    label: Text(isCommitting.value ? 'Committing...' : 'Commit'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        // File selection controls
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Theme.of(context).dividerColor),
+                                  )
+                                : const Icon(Icons.cloud_upload, size: 18),
+                            label: Text(
+                              gitState.isPushing ? 'Pushing...' : 'Push',
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              const Text('Files:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: selectAllFiles,
-                                child: const Text('Select All', style: TextStyle(fontSize: 12)),
-                              ),
-                              const Gap(4),
-                              TextButton(
-                                onPressed: deselectAllFiles,
-                                child: const Text('Deselect All', style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
+                          const Gap(8),
+                        ],
+                        FilledButton.icon(
+                          onPressed: _canCommit(gitState)
+                              ? controller.commitChanges
+                              : null,
+                          icon: gitState.isCommitting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.check, size: 18),
+                          label: Text(
+                            gitState.isCommitting ? 'Committing...' : 'Commit',
                           ),
                         ),
-                        // File list
-                        Expanded(
-                          child: ListView(
-                      padding: const EdgeInsets.all(8),
-                      children: [
-                        // Modified files
-                        if (gitStatus.value!.modified.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Modified',
-                            gitStatus.value!.modified.length,
-                            Colors.orange,
-                          ),
-                          ...gitStatus.value!.modified.asMap().entries.map(
-                                (entry) => _buildFileItem(
-                                  context,
-                                  entry.value,
-                                  'M',
-                                  Colors.orange,
-                                  selectedFiles.value.contains(entry.value),
-                                  () => toggleFileSelection(entry.value),
-                                  () => openFileDiff(
-                                    gitStatus.value!.modified,
-                                    entry.key,
-                                    'Modified',
-                                    'orange',
-                                  ),
-                                ),
-                              ),
-                          const Gap(8),
-                        ],
-                        // Added files
-                        if (gitStatus.value!.added.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Added',
-                            gitStatus.value!.added.length,
-                            Colors.green,
-                          ),
-                          ...gitStatus.value!.added.asMap().entries.map(
-                                (entry) => _buildFileItem(
-                                  context,
-                                  entry.value,
-                                  'A',
-                                  Colors.green,
-                                  selectedFiles.value.contains(entry.value),
-                                  () => toggleFileSelection(entry.value),
-                                  () => openFileDiff(
-                                    gitStatus.value!.added,
-                                    entry.key,
-                                    'Added',
-                                    'green',
-                                  ),
-                                ),
-                              ),
-                          const Gap(8),
-                        ],
-                        // Deleted files
-                        if (gitStatus.value!.deleted.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Deleted',
-                            gitStatus.value!.deleted.length,
-                            Colors.red,
-                          ),
-                          ...gitStatus.value!.deleted.asMap().entries.map(
-                                (entry) => _buildFileItem(
-                                  context,
-                                  entry.value,
-                                  'D',
-                                  Colors.red,
-                                  selectedFiles.value.contains(entry.value),
-                                  () => toggleFileSelection(entry.value),
-                                  () => openFileDiff(
-                                    gitStatus.value!.deleted,
-                                    entry.key,
-                                    'Deleted',
-                                    'red',
-                                  ),
-                                ),
-                              ),
-                          const Gap(8),
-                        ],
-                        // Untracked files
-                        if (gitStatus.value!.untracked.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Untracked',
-                            gitStatus.value!.untracked.length,
-                            Colors.grey,
-                          ),
-                          ...gitStatus.value!.untracked.asMap().entries.map(
-                                (entry) => _buildFileItem(
-                                  context,
-                                  entry.value,
-                                  '?',
-                                  Colors.grey,
-                                  selectedFiles.value.contains(entry.value),
-                                  () => toggleFileSelection(entry.value),
-                                  () => openFileDiff(
-                                    gitStatus.value!.untracked,
-                                    entry.key,
-                                    'Untracked',
-                                    'grey',
-                                  ),
-                                ),
-                              ),
-                        ],
                       ],
                     ),
-                          ),
-                        ],
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Theme.of(context).dividerColor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Files:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: controller.selectAll,
+                      child: const Text(
+                        'Select All',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const Gap(4),
+                    TextButton(
+                      onPressed: controller.deselectAll,
+                      child: const Text(
+                        'Deselect All',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(8),
+                  children: sections.expand((section) {
+                    if (section.files.isEmpty) return <Widget>[];
+                    final header = _SectionHeader(
+                      title: '${section.title} (${section.files.length})',
+                      color: section.color,
+                    );
+                    final items = section.files.asMap().entries.map((entry) {
+                      final file = entry.value;
+                      return _FileItemRow(
+                        file: file,
+                        statusLabel: section.statusLabel,
+                        color: section.color,
+                        isSelected: gitState.selectedFiles.contains(file),
+                        onToggle: () => controller.toggleFileSelection(file),
+                        onOpenDiff: () => openFileDiff(
+                          section.files,
+                          entry.key,
+                          section.title,
+                          section.color,
+                        ),
                       );
+                    });
+                    return <Widget>[header, ...items, const Gap(8)];
+                  }).toList(),
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
   }
 
-  Widget _buildSectionHeader(
-    BuildContext context,
-    String title,
-    int count,
-    Color color,
-  ) {
+  bool _canCommit(GitState state) {
+    return state.commitMessage.trim().isNotEmpty &&
+        state.selectedFiles.isNotEmpty &&
+        !state.isCommitting;
+  }
+
+  String _colorToName(Color color) {
+    if (color == Colors.orange) return 'orange';
+    if (color == Colors.green) return 'green';
+    if (color == Colors.red) return 'red';
+    if (color == Colors.grey) return 'grey';
+    return 'blue';
+  }
+}
+
+class _GitSection {
+  final String title;
+  final List<String> files;
+  final Color color;
+  final String statusLabel;
+
+  const _GitSection({
+    required this.title,
+    required this.files,
+    required this.color,
+    required this.statusLabel,
+  });
+}
+
+List<_GitSection> _buildSections(GitStatus status) {
+  return [
+    _GitSection(
+      title: 'Modified',
+      files: status.modified,
+      color: Colors.orange,
+      statusLabel: 'M',
+    ),
+    _GitSection(
+      title: 'Added',
+      files: status.added,
+      color: Colors.green,
+      statusLabel: 'A',
+    ),
+    _GitSection(
+      title: 'Deleted',
+      files: status.deleted,
+      color: Colors.red,
+      statusLabel: 'D',
+    ),
+    _GitSection(
+      title: 'Untracked',
+      files: status.untracked,
+      color: Colors.grey,
+      statusLabel: '?',
+    ),
+  ];
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.color});
+
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -580,34 +454,39 @@ class GitScreen extends HookConsumerWidget {
           ),
           const Gap(8),
           Text(
-            '$title ($count)',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildFileItem(
-    BuildContext context,
-    String file,
-    String status,
-    Color color,
-    bool isSelected,
-    VoidCallback onCheckboxTap,
-    VoidCallback onFileTap,
-  ) {
+class _FileItemRow extends StatelessWidget {
+  const _FileItemRow({
+    required this.file,
+    required this.statusLabel,
+    required this.color,
+    required this.isSelected,
+    required this.onToggle,
+    required this.onOpenDiff,
+  });
+
+  final String file;
+  final String statusLabel;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onToggle;
+  final VoidCallback onOpenDiff;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Checkbox(
-            value: isSelected,
-            onChanged: (_) => onCheckboxTap(),
-          ),
+          Checkbox(value: isSelected, onChanged: (_) => onToggle()),
           const Gap(4),
           Container(
             width: 20,
@@ -618,7 +497,7 @@ class GitScreen extends HookConsumerWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              status,
+              statusLabel,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -629,7 +508,7 @@ class GitScreen extends HookConsumerWidget {
           const Gap(8),
           Expanded(
             child: InkWell(
-              onTap: onFileTap,
+              onTap: onOpenDiff,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
@@ -642,7 +521,7 @@ class GitScreen extends HookConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right, size: 20),
-            onPressed: onFileTap,
+            onPressed: onOpenDiff,
           ),
         ],
       ),

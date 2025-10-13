@@ -35,9 +35,9 @@ class FileViewerScreen extends HookConsumerWidget {
         } catch (e) {
           isLoading.value = false;
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to load file: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Failed to load file: $e')));
           }
         }
       }
@@ -78,9 +78,9 @@ class FileViewerScreen extends HookConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save file: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to save file: $e')));
         }
       } finally {
         isSaving.value = false;
@@ -93,10 +93,7 @@ class FileViewerScreen extends HookConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text(
-          file.name,
-          style: const TextStyle(fontSize: 16),
-        ),
+        title: Text(file.name, style: const TextStyle(fontSize: 16)),
         actions: [
           if (!isLoading.value && !isSaving.value)
             if (isEditing.value)
@@ -116,35 +113,32 @@ class FileViewerScreen extends HookConsumerWidget {
       body: isLoading.value
           ? const Center(child: CircularProgressIndicator())
           : isSaving.value
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Saving file...'),
-                    ],
-                  ),
-                )
-              : TextField(
-                  controller: contentController,
-                  readOnly: !isEditing.value,
-                  maxLines: null,
-                  expands: true,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                  ),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(16),
-                    hintText: isEditing.value ? 'Edit file content...' : '',
-                  ),
-                  // Disable system context menu to prevent mobile errors
-                  contextMenuBuilder: (context, editableTextState) {
-                    return const SizedBox.shrink();
-                  },
-                ),
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Saving file...'),
+                ],
+              ),
+            )
+          : TextField(
+              controller: contentController,
+              readOnly: !isEditing.value,
+              maxLines: null,
+              expands: true,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(16),
+                hintText: isEditing.value ? 'Edit file content...' : '',
+              ),
+              // Disable system context menu to prevent mobile errors
+              contextMenuBuilder: (context, editableTextState) {
+                return const SizedBox.shrink();
+              },
+            ),
     );
   }
 }

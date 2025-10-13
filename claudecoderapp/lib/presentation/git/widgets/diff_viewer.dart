@@ -8,9 +8,7 @@ class DiffViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (diff.isEmpty) {
-      return const Center(
-        child: Text('No changes to display'),
-      );
+      return const Center(child: Text('No changes to display'));
     }
 
     final lines = diff.split('\n');
@@ -47,9 +45,9 @@ class DiffLine extends StatelessWidget {
       backgroundColor = Colors.blue.withOpacity(0.2);
       textColor = Colors.blue[900];
     } else if (line.startsWith('diff') ||
-               line.startsWith('index') ||
-               line.startsWith('---') ||
-               line.startsWith('+++')) {
+        line.startsWith('index') ||
+        line.startsWith('---') ||
+        line.startsWith('+++')) {
       textColor = Colors.grey[600];
     }
 

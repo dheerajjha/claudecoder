@@ -1,14 +1,14 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/constants/api_constants.dart';
 
 class StorageService {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  SharedPreferences? _prefs;
+  StorageService();
 
-  Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-  }
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final Future<SharedPreferences> _prefsFuture =
+      SharedPreferences.getInstance();
 
   // Secure storage for sensitive data
   Future<void> saveToken(String token) async {
@@ -16,7 +16,7 @@ class StorageService {
   }
 
   Future<String?> getToken() async {
-    return await _secureStorage.read(key: ApiConstants.tokenKey);
+    return _secureStorage.read(key: ApiConstants.tokenKey);
   }
 
   Future<void> deleteToken() async {
@@ -28,21 +28,24 @@ class StorageService {
   }
 
   Future<String?> getUsername() async {
-    return await _secureStorage.read(key: ApiConstants.usernameKey);
+    return _secureStorage.read(key: ApiConstants.usernameKey);
   }
 
   // Shared preferences for non-sensitive data
   Future<void> saveBaseUrl(String url) async {
-    await _prefs?.setString(ApiConstants.baseUrlKey, url);
+    final prefs = await _prefsFuture;
+    await prefs.setString(ApiConstants.baseUrlKey, url);
   }
 
   Future<String> getBaseUrl() async {
-    return _prefs?.getString(ApiConstants.baseUrlKey) ??
+    final prefs = await _prefsFuture;
+    return prefs.getString(ApiConstants.baseUrlKey) ??
         ApiConstants.defaultBaseUrl;
   }
 
   Future<void> clearAll() async {
     await _secureStorage.deleteAll();
-    await _prefs?.clear();
+    final prefs = await _prefsFuture;
+    await prefs.clear();
   }
 }
