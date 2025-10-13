@@ -4,6 +4,7 @@ class GitStatus {
   final List<String> added;
   final List<String> deleted;
   final List<String> untracked;
+  final int ahead;
   final String? error;
 
   GitStatus({
@@ -12,6 +13,7 @@ class GitStatus {
     required this.added,
     required this.deleted,
     required this.untracked,
+    this.ahead = 0,
     this.error,
   });
 
@@ -22,6 +24,7 @@ class GitStatus {
       added: List<String>.from(json['added'] ?? []),
       deleted: List<String>.from(json['deleted'] ?? []),
       untracked: List<String>.from(json['untracked'] ?? []),
+      ahead: json['ahead'] ?? 0,
       error: json['error'],
     );
   }
@@ -31,6 +34,8 @@ class GitStatus {
       added.isNotEmpty ||
       deleted.isNotEmpty ||
       untracked.isNotEmpty;
+
+  bool get hasUnpushedCommits => ahead > 0;
 
   int get totalChanges =>
       modified.length + added.length + deleted.length + untracked.length;

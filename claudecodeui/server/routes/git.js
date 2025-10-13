@@ -86,10 +86,10 @@ router.get('/status', async (req, res) => {
     
     statusOutput.split('\n').forEach(line => {
       if (!line.trim()) return;
-      
+
       const status = line.substring(0, 2);
       const file = line.substring(3);
-      
+
       if (status === 'M ' || status === ' M' || status === 'MM') {
         modified.push(file);
       } else if (status === 'A ' || status === 'AM') {
@@ -100,13 +100,32 @@ router.get('/status', async (req, res) => {
         untracked.push(file);
       }
     });
-    
+
+    // Check for unpushed commits
+    let ahead = 0;
+    try {
+      // Check if there's a remote tracking branch
+      const { stdout: trackingBranch } = await execAsync(`git rev-parse --abbrev-ref ${branch}@{upstream}`, { cwd: projectPath });
+      if (trackingBranch.trim()) {
+        // Get ahead count
+        const { stdout: countOutput } = await execAsync(
+          `git rev-list --count --left-right ${trackingBranch.trim()}...HEAD`,
+          { cwd: projectPath }
+        );
+        const [, aheadCount] = countOutput.trim().split('\t').map(Number);
+        ahead = aheadCount || 0;
+      }
+    } catch (error) {
+      // No upstream configured or other error - ahead stays 0
+    }
+
     res.json({
       branch: branch.trim(),
       modified,
       added,
       deleted,
-      untracked
+      untracked,
+      ahead
     });
   } catch (error) {
     console.error('Git status error:', error);

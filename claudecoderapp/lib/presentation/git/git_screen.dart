@@ -19,7 +19,6 @@ class GitScreen extends HookConsumerWidget {
     final commitMessage = useTextEditingController();
     final isCommitting = useState(false);
     final isPushing = useState(false);
-    final hasUnpushedCommit = useState(false);
     final hasCommitMessage = useState(false);
 
     // Listen to commit message changes
@@ -125,9 +124,6 @@ class GitScreen extends HookConsumerWidget {
           );
         }
 
-        // Mark that we have an unpushed commit
-        hasUnpushedCommit.value = true;
-
         // Clear commit message and reload status
         commitMessage.clear();
         selectedFiles.value = {};
@@ -160,8 +156,8 @@ class GitScreen extends HookConsumerWidget {
           );
         }
 
-        // Clear unpushed commit flag
-        hasUnpushedCommit.value = false;
+        // Reload git status to update ahead count
+        await loadGitStatus();
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -324,8 +320,16 @@ class GitScreen extends HookConsumerWidget {
                   ),
                   const Gap(16),
                   const Text('No changes'),
-                  if (hasUnpushedCommit.value) ...[
-                    const Gap(24),
+                  if (gitStatus.value?.hasUnpushedCommits == true) ...[
+                    const Gap(8),
+                    Text(
+                      '${gitStatus.value!.ahead} unpushed commit${gitStatus.value!.ahead != 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                    const Gap(16),
                     FilledButton.icon(
                       onPressed: isPushing.value ? null : pushToRemote,
                       style: FilledButton.styleFrom(
@@ -377,7 +381,7 @@ class GitScreen extends HookConsumerWidget {
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                   const Spacer(),
-                                  if (hasUnpushedCommit.value) ...[
+                                  if (gitStatus.value?.hasUnpushedCommits == true) ...[
                                     FilledButton.icon(
                                       onPressed: isPushing.value ? null : pushToRemote,
                                       style: FilledButton.styleFrom(
