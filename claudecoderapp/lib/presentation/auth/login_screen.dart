@@ -9,8 +9,8 @@ class LoginScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final usernameController = useTextEditingController();
-    final passwordController = useTextEditingController();
+    final usernameController = useTextEditingController(text: 'Babababa');
+    final passwordController = useTextEditingController(text: 'babababa');
     final baseUrlController = useTextEditingController();
     final isLoading = useState(false);
     final errorMessage = useState<String?>(null);
@@ -25,10 +25,10 @@ class LoginScreen extends HookConsumerWidget {
       Future<void> loadBaseUrl() async {
         final savedUrl = await storage.getBaseUrl();
         print('🔐 Login Screen: Loaded saved URL: $savedUrl');
-        // If it's the default localhost, prefill with example IP for development
-        if (savedUrl == 'http://localhost:3001') {
-          baseUrlController.text = 'http://172.16.28.187:3001';
-          print('🔐 Login Screen: Using example IP (localhost detected)');
+        // Already using the correct public IP as default
+        baseUrlController.text = savedUrl;
+        if (savedUrl == 'http://98.70.88.219:3001') {
+          print('🔐 Login Screen: Using public server IP');
         } else {
           baseUrlController.text = savedUrl;
           print('🔐 Login Screen: Using saved URL: $savedUrl');
