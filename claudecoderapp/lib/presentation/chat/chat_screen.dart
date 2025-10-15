@@ -13,6 +13,7 @@ import 'widgets/code_block.dart';
 import 'widgets/file_browser.dart';
 import '../git/git_screen.dart';
 import '../terminal/terminal_screen.dart';
+import '../settings/settings_screen.dart';
 
 class ChatScreen extends HookConsumerWidget {
   const ChatScreen({super.key});
@@ -97,6 +98,17 @@ class ChatScreen extends HookConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+          ),
           Tooltip(
             message: chatState.skipPermissions
                 ? 'Auto-approve: ON (risky)'

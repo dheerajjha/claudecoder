@@ -33,14 +33,18 @@ class StorageService {
 
   // Shared preferences for non-sensitive data
   Future<void> saveBaseUrl(String url) async {
+    print('💾 StorageService: Saving base URL: $url');
     final prefs = await _prefsFuture;
     await prefs.setString(ApiConstants.baseUrlKey, url);
+    print('✅ StorageService: Base URL saved successfully');
   }
 
   Future<String> getBaseUrl() async {
     final prefs = await _prefsFuture;
-    return prefs.getString(ApiConstants.baseUrlKey) ??
+    final url = prefs.getString(ApiConstants.baseUrlKey) ??
         ApiConstants.defaultBaseUrl;
+    print('📖 StorageService: Retrieved base URL: $url');
+    return url;
   }
 
   Future<void> clearAll() async {

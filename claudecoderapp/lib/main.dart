@@ -1,9 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/providers/providers.dart';
+import 'data/services/storage_service.dart';
 
-void main() {
-  runApp(const ProviderScope(child: ClaudeCoderApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize base URL from storage
+  final storage = StorageService();
+  final savedBaseUrl = await storage.getBaseUrl();
+
+  print('🚀 APP STARTING');
+  print('📡 Loaded base URL from storage: $savedBaseUrl');
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        baseUrlProvider.overrideWith((ref) => savedBaseUrl),
+      ],
+      child: const ClaudeCoderApp(),
+    ),
+  );
 }
 
 class ClaudeCoderApp extends ConsumerWidget {

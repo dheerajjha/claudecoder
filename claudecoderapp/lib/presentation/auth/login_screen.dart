@@ -11,8 +11,61 @@ class LoginScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final usernameController = useTextEditingController();
     final passwordController = useTextEditingController();
+    final baseUrlController = useTextEditingController();
     final isLoading = useState(false);
     final errorMessage = useState<String?>(null);
+    final showServerSettings = useState(false);
+    final isTesting = useState(false);
+    final testResult = useState<String?>(null);
+    final storage = ref.read(storageServiceProvider);
+    final apiService = ref.read(apiServiceProvider);
+
+    // Load saved base URL on mount
+    useEffect(() {
+      Future<void> loadBaseUrl() async {
+        final savedUrl = await storage.getBaseUrl();
+        print('🔐 Login Screen: Loaded saved URL: $savedUrl');
+        // If it's the default localhost, prefill with example IP for development
+        if (savedUrl == 'http://localhost:3001') {
+          baseUrlController.text = 'http://172.16.28.187:3001';
+          print('🔐 Login Screen: Using example IP (localhost detected)');
+        } else {
+          baseUrlController.text = savedUrl;
+          print('🔐 Login Screen: Using saved URL: $savedUrl');
+        }
+      }
+      loadBaseUrl();
+      return null;
+    }, []);
+
+    Future<void> testConnection() async {
+      final testUrl = baseUrlController.text.trim();
+      if (testUrl.isEmpty) {
+        testResult.value = '❌ Please enter a server URL';
+        return;
+      }
+
+      isTesting.value = true;
+      testResult.value = null;
+
+      try {
+        print('🧪 Testing connection to: $testUrl');
+
+        // Temporarily update the API service base URL for testing
+        apiService.updateBaseUrl(testUrl);
+
+        // Try to fetch the config endpoint
+        final config = await apiService.getConfig();
+
+        print('✅ Connection test successful: $config');
+        testResult.value = '✅ Connection successful!\nServer: ${config['wsUrl'] ?? 'Unknown'}';
+      } catch (e) {
+        print('❌ Connection test failed: $e');
+        testResult.value = '❌ Connection failed\n${e.toString().split('\n').first}';
+      } finally {
+        isTesting.value = false;
+      }
+    }
 
     Future<void> handleLogin() async {
       if (usernameController.text.isEmpty || passwordController.text.isEmpty) {
@@ -24,11 +77,23 @@ class LoginScreen extends HookConsumerWidget {
       errorMessage.value = null;
 
       try {
+        // Save base URL if changed
+        final newBaseUrl = baseUrlController.text.trim();
+        if (newBaseUrl.isNotEmpty) {
+          print('💾 Saving new base URL: $newBaseUrl');
+          await storage.saveBaseUrl(newBaseUrl);
+          ref.read(baseUrlProvider.notifier).state = newBaseUrl;
+          print('✅ Base URL saved and provider updated');
+        }
+
+        print('🔑 Attempting login with username: ${usernameController.text}');
         await ref
             .read(authStateProvider.notifier)
             .login(usernameController.text, passwordController.text);
+        print('✅ Login successful');
         // Successful login - widget will be unmounted by router
       } catch (e) {
+        print('❌ Login failed: $e');
         // Only update UI if still mounted (login failed)
         if (context.mounted) {
           errorMessage.value = e.toString();
@@ -97,6 +162,131 @@ class LoginScreen extends HookConsumerWidget {
                     enabled: !isLoading.value,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => handleLogin(),
+                  ),
+                  const Gap(24),
+
+                  // Server Settings (Expandable)
+                  Card(
+                    elevation: 0,
+                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                    child: Column(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            showServerSettings.value = !showServerSettings.value;
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.dns,
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const Gap(12),
+                                Expanded(
+                                  child: Text(
+                                    'Server Settings',
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  showServerSettings.value
+                                      ? Icons.expand_less
+                                      : Icons.expand_more,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (showServerSettings.value) ...[
+                          const Divider(height: 1),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Development Server URL',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const Gap(8),
+                                TextField(
+                                  controller: baseUrlController,
+                                  decoration: InputDecoration(
+                                    hintText: 'http://172.16.28.187:3001',
+                                    border: const OutlineInputBorder(),
+                                    prefixIcon: const Icon(Icons.link),
+                                    filled: true,
+                                    fillColor: Theme.of(context).colorScheme.surface,
+                                  ),
+                                  keyboardType: TextInputType.url,
+                                  enabled: !isLoading.value,
+                                ),
+                                const Gap(8),
+                                Text(
+                                  'Enter your development server IP address and port',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const Gap(12),
+                                // Test Connection Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: (isTesting.value || isLoading.value) ? null : testConnection,
+                                    icon: isTesting.value
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          )
+                                        : const Icon(Icons.wifi_find, size: 18),
+                                    label: Text(isTesting.value ? 'Testing...' : 'Test Connection'),
+                                  ),
+                                ),
+                                // Test Result
+                                if (testResult.value != null) ...[
+                                  const Gap(8),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: testResult.value!.startsWith('✅')
+                                          ? Colors.green.withOpacity(0.1)
+                                          : Colors.red.withOpacity(0.1),
+                                      border: Border.all(
+                                        color: testResult.value!.startsWith('✅')
+                                            ? Colors.green
+                                            : Colors.red,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      testResult.value!,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: testResult.value!.startsWith('✅')
+                                            ? Colors.green.shade900
+                                            : Colors.red.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   const Gap(24),
 

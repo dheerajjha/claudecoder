@@ -24,6 +24,8 @@ class ApiService {
           headers: {ApiConstants.contentType: ApiConstants.applicationJson},
         ),
       ) {
+    final finalBaseUrl = baseUrl ?? ApiConstants.defaultBaseUrl;
+    _logger.i('🌐 ApiService initialized with baseUrl: $finalBaseUrl');
     _setupInterceptors();
   }
 
@@ -35,7 +37,9 @@ class ApiService {
           if (token != null) {
             options.headers[ApiConstants.authHeader] = 'Bearer $token';
           }
+          final fullUrl = '${options.baseUrl}${options.path}';
           _logger.d('Request: ${options.method} ${options.path}');
+          _logger.i('🌐 Full URL: $fullUrl');
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -53,6 +57,7 @@ class ApiService {
   }
 
   void updateBaseUrl(String baseUrl) {
+    _logger.i('🔄 Updating base URL to: $baseUrl');
     _dio.options.baseUrl = baseUrl;
   }
 
