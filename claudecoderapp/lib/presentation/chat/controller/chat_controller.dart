@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -172,15 +173,21 @@ class ChatController extends StateNotifier<ChatState> {
   }
 
   Future<void> _loadHistory(String sessionId) async {
+    print('📚 Chat: Loading history for session: $sessionId');
     state = state.copyWith(isLoadingHistory: true);
     try {
       final messages = await _apiService.getMessages(project.name, sessionId);
+      print('📊 Chat: Loaded ${messages.length} messages from history');
+      for (var i = 0; i < messages.length && i < 5; i++) {
+        print('  - Message $i: role=${messages[i].role}, hasContent=${messages[i].content.isNotEmpty}, isToolUse=${messages[i].isToolUse}');
+      }
       state = state.copyWith(
         messages: messages,
         isLoadingHistory: false,
         activeSessionId: sessionId,
       );
     } catch (error) {
+      print('❌ Chat: Failed to load history: $error');
       state = state.copyWith(
         isLoadingHistory: false,
         errorMessage: error.toString(),
@@ -188,9 +195,11 @@ class ChatController extends StateNotifier<ChatState> {
     }
   }
 
-  Future<void> sendMessage(String content) async {
+  Future<void> sendMessage(String content, {List<AttachedImage>? images}) async {
     final trimmed = content.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty && (images == null || images.isEmpty)) return;
+
+    print('📤 Chat: Sending message (${trimmed.length} chars, ${images?.length ?? 0} images)');
 
     await _connect();
 
@@ -199,11 +208,24 @@ class ChatController extends StateNotifier<ChatState> {
       role: 'user',
       content: trimmed,
       timestamp: DateTime.now().toIso8601String(),
+      images: images ?? [],
     );
 
     state = state.copyWith(messages: [...state.messages, userMessage]);
+    print('📊 Chat: User message added, total messages: ${state.messages.length}');
 
     final targetSessionId = state.activeSessionId ?? initialSessionId;
+
+    // Convert images to the format expected by the backend
+    List<Map<String, dynamic>>? imageData;
+    if (images != null && images.isNotEmpty) {
+      imageData = images.map((img) => {
+        'name': img.name,
+        'data': img.data,
+        'mimeType': img.mimeType,
+      }).toList();
+      print('📸 Chat: Prepared ${imageData.length} images for sending');
+    }
 
     _webSocketService.sendClaudeCommand(
       trimmed,
@@ -211,6 +233,7 @@ class ChatController extends StateNotifier<ChatState> {
       sessionId: targetSessionId,
       resume: targetSessionId != null,
       skipPermissions: state.skipPermissions,
+      images: imageData,
     );
   }
 
@@ -223,87 +246,154 @@ class ChatController extends StateNotifier<ChatState> {
   }
 
   void _handleMessage(WebSocketMessage wsMessage) {
+    print('💬 Chat: Processing WS message type: ${wsMessage.type}');
+
     if (wsMessage.type == 'claude-response') {
       _handleClaudeResponse(wsMessage);
     } else if (wsMessage.type == 'claude-complete') {
+      print('✅ Chat: Claude response complete');
       _finalizeStreamingMessage();
       _ref.read(fileBrowserRefreshProvider.notifier).state++;
     } else if (wsMessage.type == 'session-created') {
       final sessionId = wsMessage.sessionId;
       if (sessionId != null) {
+        print('🆔 Chat: Session created: $sessionId');
         state = state.copyWith(activeSessionId: sessionId);
       }
     } else if (wsMessage.type == 'error') {
+      print('❌ Chat: Error message: ${wsMessage.error}');
       state = state.copyWith(errorMessage: wsMessage.error);
+    } else {
+      print('⚠️ Chat: Unknown message type: ${wsMessage.type}');
     }
   }
 
   void _handleClaudeResponse(WebSocketMessage wsMessage) {
-    String content = '';
-    bool hasPermissionDenial = false;
-
     final responseData = wsMessage.data;
-    if (responseData != null) {
-      if (responseData['type'] == 'assistant') {
-        final message = responseData['message'];
-        if (message != null && message['content'] is List) {
-          for (final block in message['content']) {
-            if (block['type'] == 'text') {
-              content += block['text']?.toString() ?? '';
-            }
-          }
-        }
-      }
+    if (responseData == null) {
+      print('⚠️ Chat: claude-response has null data');
+      return;
+    }
 
-      if (responseData['type'] == 'user') {
-        final message = responseData['message'];
-        if (message != null && message['content'] is List) {
-          for (final block in message['content']) {
-            if (block['type'] == 'tool_result' && block['is_error'] == true) {
-              final errorContent = block['content']?.toString() ?? '';
-              if (errorContent.contains('requested permissions') ||
-                  errorContent.contains("haven't granted it yet")) {
-                hasPermissionDenial = true;
-                break;
-              }
-            }
+    print('📝 Chat: Processing response data type: ${responseData['type']}');
+
+    String content = '';
+    String messageType = 'assistant';
+    bool isToolUse = false;
+    String? toolName;
+
+    // Handle assistant messages
+    if (responseData['type'] == 'assistant') {
+      final message = responseData['message'];
+      if (message != null && message['content'] is List) {
+        for (final block in message['content']) {
+          if (block['type'] == 'text') {
+            content += block['text']?.toString() ?? '';
+          } else if (block['type'] == 'tool_use') {
+            isToolUse = true;
+            toolName = block['name']?.toString();
+            // Show tool use information
+            final toolContent = '🔧 **Using Tool: ${block['name']}**\n\n```json\n${jsonEncode(block['input'])}\n```';
+            content += (content.isNotEmpty ? '\n\n' : '') + toolContent;
           }
         }
       }
     }
+    // Handle user/system messages (including tool results)
+    else if (responseData['type'] == 'user' || responseData['type'] == 'system') {
+      messageType = responseData['type'];
+      final message = responseData['message'];
+      if (message != null && message['content'] is List) {
+        final parts = <String>[];
+        for (final block in message['content']) {
+          if (block['type'] == 'text') {
+            parts.add(block['text']?.toString() ?? '');
+          } else if (block['type'] == 'tool_result') {
+            final toolResultContent = block['content']?.toString() ?? '';
+            final isError = block['is_error'] == true;
+            final toolId = block['tool_use_id'] ?? 'unknown';
 
-    if (hasPermissionDenial) {
-      final warning = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        role: 'assistant',
-        content:
-            '⚠️ **Permission Required**\n\nI don\'t have the required permissions to complete this action. Enable permissions by tapping the lock icon.',
-        timestamp: DateTime.now().toIso8601String(),
-        isStreaming: false,
-      );
-      state = state.copyWith(messages: [...state.messages, warning]);
+            // Format tool result with clear indication
+            final resultHeader = isError
+                ? '❌ **Tool Result (Error)** - ID: $toolId'
+                : '✅ **Tool Result** - ID: $toolId';
+
+            parts.add('$resultHeader\n\n```\n$toolResultContent\n```');
+          }
+        }
+        content = parts.join('\n\n');
+      }
+    }
+    // Handle any other message types
+    else {
+      messageType = responseData['type'] ?? 'system';
+      // Try to extract content from any message format
+      if (responseData['content'] != null) {
+        content = responseData['content'].toString();
+      } else if (responseData['message'] != null) {
+        final message = responseData['message'];
+        if (message['content'] is String) {
+          content = message['content'];
+        } else if (message['content'] is List) {
+          final parts = <String>[];
+          for (final block in message['content']) {
+            if (block['text'] != null) {
+              parts.add(block['text'].toString());
+            }
+          }
+          content = parts.join('\n');
+        }
+      }
     }
 
-    if (content.isEmpty) return;
-
+    // Always show messages, even if empty (to show tool use indicators, etc.)
     final messages = List<ChatMessage>.from(state.messages);
-    if (messages.isNotEmpty &&
-        messages.last.role == 'assistant' &&
-        messages.last.isStreaming) {
-      final last = messages.removeLast();
-      messages.add(last.copyWith(content: last.content + content));
+
+    // For assistant messages, support streaming
+    if (messageType == 'assistant' && !isToolUse) {
+      if (messages.isNotEmpty &&
+          messages.last.role == 'assistant' &&
+          messages.last.isStreaming) {
+        print('➕ Chat: Appending to streaming message (${content.length} chars)');
+        final last = messages.removeLast();
+        messages.add(last.copyWith(content: last.content + content));
+      } else if (content.isNotEmpty) {
+        print('📨 Chat: New assistant message (${content.length} chars)');
+        messages.add(
+          ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            role: messageType,
+            content: content,
+            timestamp: DateTime.now().toIso8601String(),
+            isStreaming: true,
+            isToolUse: isToolUse,
+            toolName: toolName,
+          ),
+        );
+      } else {
+        print('⚠️ Chat: Empty assistant content, skipping');
+      }
     } else {
-      messages.add(
-        ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          role: 'assistant',
-          content: content,
-          timestamp: DateTime.now().toIso8601String(),
-          isStreaming: true,
-        ),
-      );
+      // For non-streaming messages (tool results, system messages, etc.)
+      if (content.isNotEmpty) {
+        print('📨 Chat: New $messageType message (${content.length} chars, toolUse: $isToolUse)');
+        messages.add(
+          ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            role: messageType,
+            content: content,
+            timestamp: DateTime.now().toIso8601String(),
+            isStreaming: false,
+            isToolUse: isToolUse,
+            toolName: toolName,
+          ),
+        );
+      } else {
+        print('⚠️ Chat: Empty $messageType content, skipping');
+      }
     }
 
+    print('📊 Chat: Total messages now: ${messages.length}');
     state = state.copyWith(messages: messages);
   }
 

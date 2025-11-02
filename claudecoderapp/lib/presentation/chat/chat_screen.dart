@@ -1,9 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:markdown/markdown.dart' as md;
 
 import '../../core/providers/providers.dart';
@@ -41,6 +45,10 @@ class ChatScreen extends HookConsumerWidget {
     final messageController = useTextEditingController();
     final scrollController = useScrollController();
     final currentTabIndex = useState(0);
+    final attachedImages = useState<List<AttachedImage>>([]);
+    final imagePicker = useMemoized(() => ImagePicker());
+    final focusNode = useFocusNode();
+    final lastBackPressTime = useRef<DateTime?>(null);
 
     useEffect(() {
       final error = chatState.errorMessage;
@@ -70,18 +78,81 @@ class ChatScreen extends HookConsumerWidget {
       return null;
     }, [chatState.messages.length, scrollController]);
 
+    Future<void> pickImages() async {
+      try {
+        final List<XFile> pickedFiles = await imagePicker.pickMultiImage();
+
+        for (final file in pickedFiles) {
+          final bytes = await file.readAsBytes();
+          final base64 = base64Encode(bytes);
+          final mimeType = file.mimeType ?? 'image/jpeg';
+
+          attachedImages.value = [
+            ...attachedImages.value,
+            AttachedImage(
+              name: file.name,
+              data: base64,
+              mimeType: mimeType,
+            ),
+          ];
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to pick images: $e')),
+          );
+        }
+      }
+    }
+
+    void removeImage(int index) {
+      final updated = List<AttachedImage>.from(attachedImages.value);
+      updated.removeAt(index);
+      attachedImages.value = updated;
+    }
+
     void sendMessage() {
       final text = messageController.text.trim();
-      if (text.isEmpty) return;
+      if (text.isEmpty && attachedImages.value.isEmpty) return;
+
       messageController.clear();
-      chatController.sendMessage(text);
+      final images = attachedImages.value;
+      attachedImages.value = [];
+
+      chatController.sendMessage(text, images: images.isEmpty ? null : images);
+    }
+
+    void handleBackButton() {
+      // If keyboard is visible, dismiss it first
+      if (focusNode.hasFocus) {
+        focusNode.unfocus();
+        lastBackPressTime.value = DateTime.now();
+        return;
+      }
+
+      // Check if last back press was within 1 second
+      final now = DateTime.now();
+      if (lastBackPressTime.value != null &&
+          now.difference(lastBackPressTime.value!).inSeconds < 1) {
+        // Second tap within 1 second - pop the screen
+        context.go('/');
+      } else {
+        // First tap or too long since last tap
+        lastBackPressTime.value = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tap back again to exit chat'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
     }
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
+          onPressed: handleBackButton,
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,28 +265,88 @@ class ChatScreen extends HookConsumerWidget {
                     ),
                   ],
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: messageController,
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message...',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                    // Image preview
+                    if (attachedImages.value.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        height: 80,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: attachedImages.value.length,
+                          itemBuilder: (context, index) {
+                            final image = attachedImages.value[index];
+                            return Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.memory(
+                                      base64Decode(image.data),
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: GestureDetector(
+                                      onTap: () => removeImage(index),
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        padding: const EdgeInsets.all(4),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    // Input row
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.image),
+                          onPressed: pickImages,
+                          tooltip: 'Attach images',
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: messageController,
+                            focusNode: focusNode,
+                            decoration: const InputDecoration(
+                              hintText: 'Type a message...',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            maxLines: null,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => sendMessage(),
                           ),
                         ),
-                        maxLines: null,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => sendMessage(),
-                      ),
-                    ),
-                    const Gap(8),
-                    FilledButton(
-                      onPressed: sendMessage,
-                      child: const Icon(Icons.send),
+                        const Gap(8),
+                        FilledButton(
+                          onPressed: sendMessage,
+                          child: const Icon(Icons.send),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -260,6 +391,30 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
+    final isSystem = message.role == 'system';
+
+    // Color scheme based on message type
+    Color backgroundColor;
+    Color textColor;
+    IconData icon;
+    String label;
+
+    if (isUser) {
+      backgroundColor = Theme.of(context).colorScheme.primaryContainer;
+      textColor = Theme.of(context).colorScheme.onPrimaryContainer;
+      icon = Icons.person;
+      label = 'You';
+    } else if (isSystem) {
+      backgroundColor = Colors.orange.shade50;
+      textColor = Colors.orange.shade900;
+      icon = Icons.info_outline;
+      label = 'System';
+    } else {
+      backgroundColor = Theme.of(context).colorScheme.secondaryContainer;
+      textColor = Theme.of(context).colorScheme.onSecondaryContainer;
+      icon = Icons.smart_toy;
+      label = 'Claude';
+    }
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -270,9 +425,7 @@ class MessageBubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: isUser
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Theme.of(context).colorScheme.secondaryContainer,
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -281,20 +434,16 @@ class MessageBubble extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  isUser ? Icons.person : Icons.smart_toy,
+                  icon,
                   size: 16,
-                  color: isUser
-                      ? Theme.of(context).colorScheme.onPrimaryContainer
-                      : Theme.of(context).colorScheme.onSecondaryContainer,
+                  color: textColor,
                 ),
                 const Gap(4),
                 Text(
-                  isUser ? 'You' : 'Claude',
+                  label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isUser
-                        ? Theme.of(context).colorScheme.onPrimaryContainer
-                        : Theme.of(context).colorScheme.onSecondaryContainer,
+                    color: textColor,
                   ),
                 ),
               ],
@@ -303,18 +452,52 @@ class MessageBubble extends StatelessWidget {
             MarkdownBody(
               data: message.content,
               styleSheet: MarkdownStyleSheet(
-                p: TextStyle(
-                  color: isUser
-                      ? Theme.of(context).colorScheme.onPrimaryContainer
-                      : Theme.of(context).colorScheme.onSecondaryContainer,
-                ),
+                p: TextStyle(color: textColor),
                 code: TextStyle(
                   backgroundColor: Colors.black12,
                   fontFamily: 'monospace',
                 ),
+                codeblockDecoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
               builders: {'code': CodeBlockBuilder()},
             ),
+            // Display attached images
+            if (message.images.isNotEmpty) ...[
+              const Gap(8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: message.images.map((image) {
+                  return GestureDetector(
+                    onTap: () {
+                      // Show full-size image in a dialog
+                      showDialog(
+                        context: context,
+                        builder: (context) => Dialog(
+                          child: InteractiveViewer(
+                            child: Image.memory(
+                              base64Decode(image.data),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        base64Decode(image.data),
+                        width: 150,
+                        height: 150,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
       ),

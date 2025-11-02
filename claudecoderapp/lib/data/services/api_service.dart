@@ -24,8 +24,7 @@ class ApiService {
           headers: {ApiConstants.contentType: ApiConstants.applicationJson},
         ),
       ) {
-    final finalBaseUrl = baseUrl ?? ApiConstants.defaultBaseUrl;
-    _logger.i('🌐 ApiService initialized with baseUrl: $finalBaseUrl');
+    print('🌐 API Service initialized');
     _setupInterceptors();
   }
 
@@ -37,19 +36,19 @@ class ApiService {
           if (token != null) {
             options.headers[ApiConstants.authHeader] = 'Bearer $token';
           }
-          final fullUrl = '${options.baseUrl}${options.path}';
-          _logger.d('Request: ${options.method} ${options.path}');
-          _logger.i('🌐 Full URL: $fullUrl');
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          _logger.d(
-            'Response: ${response.statusCode} ${response.requestOptions.path}',
-          );
+          // Only log non-successful responses
+          if (response.statusCode != null && response.statusCode! >= 400) {
+            print(
+              '❌ API Error: ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.path}',
+            );
+          }
           return handler.next(response);
         },
         onError: (error, handler) {
-          _logger.e('Error: ${error.message}');
+          print('❌ API Error: ${error.message}');
           return handler.next(error);
         },
       ),
@@ -57,7 +56,7 @@ class ApiService {
   }
 
   void updateBaseUrl(String baseUrl) {
-    _logger.i('🔄 Updating base URL to: $baseUrl');
+    print('🔄 Base URL updated: $baseUrl');
     _dio.options.baseUrl = baseUrl;
   }
 
@@ -163,10 +162,12 @@ class ApiService {
       parse: (response) {
         if (response.statusCode == 200) {
           final List<dynamic> messages = response.data['messages'] ?? [];
-          return messages
+          print('📥 Loading ${messages.length} messages from history');
+          final parsed = messages
               .map((json) => ChatMessage.fromJson(json))
-              .where((msg) => msg.content.isNotEmpty)
               .toList();
+          print('✅ Loaded ${parsed.length} messages after parsing');
+          return parsed;
         }
         throw Exception('Failed to load messages');
       },

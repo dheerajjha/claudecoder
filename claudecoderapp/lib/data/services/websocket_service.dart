@@ -1,21 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:logger/logger.dart';
 import '../models/chat_message.dart';
 
 class WebSocketService {
   WebSocketChannel? _channel;
   final StreamController<WebSocketMessage> _messageController =
       StreamController<WebSocketMessage>.broadcast();
-  final Logger _logger = Logger();
 
   Stream<WebSocketMessage> get messages => _messageController.stream;
   bool get isConnected => _channel != null;
 
   Future<void> connect(String wsUrl, String token) async {
     try {
-      _logger.d('Connecting to WebSocket: $wsUrl');
+      print('📡 Connecting WebSocket: $wsUrl');
 
       // Close existing connection if any
       await disconnect();
@@ -31,24 +29,24 @@ class WebSocketService {
             final json = jsonDecode(data);
             final message = WebSocketMessage.fromJson(json);
             _messageController.add(message);
-            _logger.d('WebSocket message received: ${message.type}');
+            print('📩 WS Received: ${message.type}');
           } catch (e) {
-            _logger.e('Error parsing WebSocket message: $e');
+            print('❌ WS Parse Error: $e');
           }
         },
         onError: (error) {
-          _logger.e('WebSocket error: $error');
+          print('❌ WS Error: $error');
           _messageController.addError(error);
         },
         onDone: () {
-          _logger.d('WebSocket connection closed');
+          print('📡 WS Disconnected');
           _channel = null;
         },
       );
 
-      _logger.d('WebSocket connected successfully');
+      print('✅ WebSocket connected');
     } catch (e) {
-      _logger.e('Failed to connect WebSocket: $e');
+      print('❌ WS Connect failed: $e');
       throw Exception('WebSocket connection failed: $e');
     }
   }
@@ -61,9 +59,9 @@ class WebSocketService {
     try {
       final jsonMessage = jsonEncode(message);
       _channel!.sink.add(jsonMessage);
-      _logger.d('WebSocket message sent: ${message['type']}');
+      print('📤 WS Sent: ${message['type']}');
     } catch (e) {
-      _logger.e('Error sending WebSocket message: $e');
+      print('❌ WS Send Error: $e');
       throw Exception('Failed to send message: $e');
     }
   }
@@ -74,6 +72,7 @@ class WebSocketService {
     String? sessionId,
     bool resume = false,
     bool skipPermissions = false, // Default to ask for permissions (safer)
+    List<Map<String, dynamic>>? images,
   }) {
     sendMessage({
       'type': 'claude-command',
@@ -90,6 +89,7 @@ class WebSocketService {
           'allowedTools': [],
           'disallowedTools': [],
         },
+        if (images != null && images.isNotEmpty) 'images': images,
       },
     });
   }
@@ -125,7 +125,7 @@ class WebSocketService {
     if (_channel != null) {
       await _channel!.sink.close();
       _channel = null;
-      _logger.d('WebSocket disconnected');
+      print('📡 WebSocket disconnected');
     }
   }
 

@@ -26,6 +26,7 @@ mixin _$ChatMessage {
   bool get isStreaming => throw _privateConstructorUsedError;
   bool? get isToolUse => throw _privateConstructorUsedError;
   String? get toolName => throw _privateConstructorUsedError;
+  List<AttachedImage> get images => throw _privateConstructorUsedError;
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.
@@ -50,6 +51,7 @@ abstract class $ChatMessageCopyWith<$Res> {
     bool isStreaming,
     bool? isToolUse,
     String? toolName,
+    List<AttachedImage> images,
   });
 }
 
@@ -76,6 +78,7 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
     Object? isStreaming = null,
     Object? isToolUse = freezed,
     Object? toolName = freezed,
+    Object? images = null,
   }) {
     return _then(
       _value.copyWith(
@@ -111,6 +114,10 @@ class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
                 ? _value.toolName
                 : toolName // ignore: cast_nullable_to_non_nullable
                       as String?,
+            images: null == images
+                ? _value.images
+                : images // ignore: cast_nullable_to_non_nullable
+                      as List<AttachedImage>,
           )
           as $Val,
     );
@@ -135,6 +142,7 @@ abstract class _$$ChatMessageImplCopyWith<$Res>
     bool isStreaming,
     bool? isToolUse,
     String? toolName,
+    List<AttachedImage> images,
   });
 }
 
@@ -160,6 +168,7 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
     Object? isStreaming = null,
     Object? isToolUse = freezed,
     Object? toolName = freezed,
+    Object? images = null,
   }) {
     return _then(
       _$ChatMessageImpl(
@@ -195,6 +204,10 @@ class __$$ChatMessageImplCopyWithImpl<$Res>
             ? _value.toolName
             : toolName // ignore: cast_nullable_to_non_nullable
                   as String?,
+        images: null == images
+            ? _value._images
+            : images // ignore: cast_nullable_to_non_nullable
+                  as List<AttachedImage>,
       ),
     );
   }
@@ -212,7 +225,9 @@ class _$ChatMessageImpl implements _ChatMessage {
     this.isStreaming = false,
     this.isToolUse,
     this.toolName,
-  }) : _metadata = metadata;
+    final List<AttachedImage> images = const [],
+  }) : _metadata = metadata,
+       _images = images;
 
   @override
   final String id;
@@ -240,10 +255,18 @@ class _$ChatMessageImpl implements _ChatMessage {
   final bool? isToolUse;
   @override
   final String? toolName;
+  final List<AttachedImage> _images;
+  @override
+  @JsonKey()
+  List<AttachedImage> get images {
+    if (_images is EqualUnmodifiableListView) return _images;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_images);
+  }
 
   @override
   String toString() {
-    return 'ChatMessage(id: $id, role: $role, content: $content, timestamp: $timestamp, metadata: $metadata, isStreaming: $isStreaming, isToolUse: $isToolUse, toolName: $toolName)';
+    return 'ChatMessage(id: $id, role: $role, content: $content, timestamp: $timestamp, metadata: $metadata, isStreaming: $isStreaming, isToolUse: $isToolUse, toolName: $toolName, images: $images)';
   }
 
   @override
@@ -262,7 +285,8 @@ class _$ChatMessageImpl implements _ChatMessage {
             (identical(other.isToolUse, isToolUse) ||
                 other.isToolUse == isToolUse) &&
             (identical(other.toolName, toolName) ||
-                other.toolName == toolName));
+                other.toolName == toolName) &&
+            const DeepCollectionEquality().equals(other._images, _images));
   }
 
   @override
@@ -276,6 +300,7 @@ class _$ChatMessageImpl implements _ChatMessage {
     isStreaming,
     isToolUse,
     toolName,
+    const DeepCollectionEquality().hash(_images),
   );
 
   /// Create a copy of ChatMessage
@@ -297,6 +322,7 @@ abstract class _ChatMessage implements ChatMessage {
     final bool isStreaming,
     final bool? isToolUse,
     final String? toolName,
+    final List<AttachedImage> images,
   }) = _$ChatMessageImpl;
 
   @override
@@ -315,12 +341,212 @@ abstract class _ChatMessage implements ChatMessage {
   bool? get isToolUse;
   @override
   String? get toolName;
+  @override
+  List<AttachedImage> get images;
 
   /// Create a copy of ChatMessage
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ChatMessageImplCopyWith<_$ChatMessageImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+AttachedImage _$AttachedImageFromJson(Map<String, dynamic> json) {
+  return _AttachedImage.fromJson(json);
+}
+
+/// @nodoc
+mixin _$AttachedImage {
+  String get name => throw _privateConstructorUsedError;
+  String get data =>
+      throw _privateConstructorUsedError; // Base64 encoded image data
+  String get mimeType => throw _privateConstructorUsedError;
+
+  /// Serializes this AttachedImage to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of AttachedImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $AttachedImageCopyWith<AttachedImage> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $AttachedImageCopyWith<$Res> {
+  factory $AttachedImageCopyWith(
+    AttachedImage value,
+    $Res Function(AttachedImage) then,
+  ) = _$AttachedImageCopyWithImpl<$Res, AttachedImage>;
+  @useResult
+  $Res call({String name, String data, String mimeType});
+}
+
+/// @nodoc
+class _$AttachedImageCopyWithImpl<$Res, $Val extends AttachedImage>
+    implements $AttachedImageCopyWith<$Res> {
+  _$AttachedImageCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of AttachedImage
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? name = null,
+    Object? data = null,
+    Object? mimeType = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            name: null == name
+                ? _value.name
+                : name // ignore: cast_nullable_to_non_nullable
+                      as String,
+            data: null == data
+                ? _value.data
+                : data // ignore: cast_nullable_to_non_nullable
+                      as String,
+            mimeType: null == mimeType
+                ? _value.mimeType
+                : mimeType // ignore: cast_nullable_to_non_nullable
+                      as String,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$AttachedImageImplCopyWith<$Res>
+    implements $AttachedImageCopyWith<$Res> {
+  factory _$$AttachedImageImplCopyWith(
+    _$AttachedImageImpl value,
+    $Res Function(_$AttachedImageImpl) then,
+  ) = __$$AttachedImageImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String name, String data, String mimeType});
+}
+
+/// @nodoc
+class __$$AttachedImageImplCopyWithImpl<$Res>
+    extends _$AttachedImageCopyWithImpl<$Res, _$AttachedImageImpl>
+    implements _$$AttachedImageImplCopyWith<$Res> {
+  __$$AttachedImageImplCopyWithImpl(
+    _$AttachedImageImpl _value,
+    $Res Function(_$AttachedImageImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of AttachedImage
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? name = null,
+    Object? data = null,
+    Object? mimeType = null,
+  }) {
+    return _then(
+      _$AttachedImageImpl(
+        name: null == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+                  as String,
+        data: null == data
+            ? _value.data
+            : data // ignore: cast_nullable_to_non_nullable
+                  as String,
+        mimeType: null == mimeType
+            ? _value.mimeType
+            : mimeType // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$AttachedImageImpl implements _AttachedImage {
+  const _$AttachedImageImpl({
+    required this.name,
+    required this.data,
+    required this.mimeType,
+  });
+
+  factory _$AttachedImageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$AttachedImageImplFromJson(json);
+
+  @override
+  final String name;
+  @override
+  final String data;
+  // Base64 encoded image data
+  @override
+  final String mimeType;
+
+  @override
+  String toString() {
+    return 'AttachedImage(name: $name, data: $data, mimeType: $mimeType)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$AttachedImageImpl &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.data, data) || other.data == data) &&
+            (identical(other.mimeType, mimeType) ||
+                other.mimeType == mimeType));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, name, data, mimeType);
+
+  /// Create a copy of AttachedImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$AttachedImageImplCopyWith<_$AttachedImageImpl> get copyWith =>
+      __$$AttachedImageImplCopyWithImpl<_$AttachedImageImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$AttachedImageImplToJson(this);
+  }
+}
+
+abstract class _AttachedImage implements AttachedImage {
+  const factory _AttachedImage({
+    required final String name,
+    required final String data,
+    required final String mimeType,
+  }) = _$AttachedImageImpl;
+
+  factory _AttachedImage.fromJson(Map<String, dynamic> json) =
+      _$AttachedImageImpl.fromJson;
+
+  @override
+  String get name;
+  @override
+  String get data; // Base64 encoded image data
+  @override
+  String get mimeType;
+
+  /// Create a copy of AttachedImage
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$AttachedImageImplCopyWith<_$AttachedImageImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 

@@ -27,6 +27,16 @@ class TerminalScreen extends HookConsumerWidget {
     final textFieldFocus = useFocusNode();
     final lastTextValue = useState('');
 
+    // Listen to focus changes
+    useEffect(() {
+      void onFocusChange() {
+        print('🔍 TextField focus changed: ${textFieldFocus.hasFocus ? "FOCUSED" : "UNFOCUSED"}');
+      }
+
+      textFieldFocus.addListener(onFocusChange);
+      return () => textFieldFocus.removeListener(onFocusChange);
+    }, [textFieldFocus]);
+
     // Send data to terminal
     void sendToTerminal(String data) {
       if (webSocketChannel.value != null && isConnected.value) {
@@ -116,6 +126,12 @@ class TerminalScreen extends HookConsumerWidget {
       webSocketChannel.value?.sink.close();
     }
 
+    // Restart connection
+    void restart() {
+      cleanup();
+      connectToBackend();
+    }
+
     // Auto-connect when project is available
     useEffect(() {
       if (selectedProject != null) {
@@ -171,108 +187,138 @@ class TerminalScreen extends HookConsumerWidget {
     }
 
     return Scaffold(
-      body: GestureDetector(
-        onVerticalDragEnd: (details) {
-          // Swipe down gesture to dismiss keyboard
-          if (details.primaryVelocity != null && details.primaryVelocity! > 0) {
-            textFieldFocus.unfocus();
-          }
-        },
-        child: Stack(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Main terminal UI - with tap gesture to toggle keyboard
-            GestureDetector(
-              onTap: () {
-                // Toggle keyboard visibility when tapping on terminal area
-                if (textFieldFocus.hasFocus) {
-                  textFieldFocus.unfocus();
-                } else {
-                  textFieldFocus.requestFocus();
-                }
-              },
-              child: Container(
-                color: const Color(0xFF1E1E1E),
-                child: Column(
-                  children: [
-                    // Connection status bar
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+            const Text('Terminal', style: TextStyle(fontSize: 16)),
+            Text(
+              selectedProject.displayName,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          if (!isConnected.value)
+            IconButton(
+              onPressed: restart,
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Reconnect',
+            ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          // Main terminal UI
+          Container(
+              color: const Color(0xFF1E1E1E),
+              child: Column(
+                children: [
+                  // Connection status bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.withOpacity(0.3)),
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Colors.grey.withOpacity(0.3),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isConnected.value
+                              ? Icons.circle
+                              : Icons.circle_outlined,
+                          color: isConnected.value
+                              ? Colors.green
+                              : Colors.orange,
+                          size: 12,
+                        ),
+                        const Gap(8),
+                        Text(
+                          isConnected.value
+                              ? 'Connected'
+                              : (isConnecting.value
+                                    ? 'Connecting...'
+                                    : 'Disconnected'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
                           ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isConnected.value
-                                ? Icons.circle
-                                : Icons.circle_outlined,
-                            color: isConnected.value
-                                ? Colors.green
-                                : Colors.orange,
-                            size: 12,
-                          ),
-                          const Gap(8),
-                          Text(
-                            isConnected.value
-                                ? 'Connected'
-                                : (isConnecting.value
-                                      ? 'Connecting...'
-                                      : 'Disconnected'),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white70,
+                      ],
+                    ),
+                  ),
+
+                  // Terminal display using xterm - read-only display (input via TextField below)
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        // Terminal view that can be scrolled
+                        GestureDetector(
+                          // Only respond to taps, not long-presses (allow text selection)
+                          behavior: HitTestBehavior.translucent,
+                          onTap: () {
+                            print('👆 Tap detected - focusing TextField');
+                            textFieldFocus.requestFocus();
+                          },
+                          // Allow long-press for text selection
+                          onLongPressStart: null, // Don't intercept long-press
+                          child: Container(
+                            // Add bottom padding to account for TextField
+                            padding: const EdgeInsets.only(bottom: 60),
+                            color: const Color(0xFF1E1E1E),
+                            child: TerminalView(
+                              terminal,
+                              theme: const TerminalTheme(
+                          cursor: Color(0xFFFFFFFF),
+                          selection: Color(0xFF264F78),
+                          foreground: Color(0xFFD4D4D4),
+                          background: Color(0xFF1E1E1E),
+                          black: Color(0xFF000000),
+                          red: Color(0xFFCD3131),
+                          green: Color(0xFF0DBC79),
+                          yellow: Color(0xFFE5E510),
+                          blue: Color(0xFF2472C8),
+                          magenta: Color(0xFFBC3FBC),
+                          cyan: Color(0xFF11A8CD),
+                          white: Color(0xFFE5E5E5),
+                          brightBlack: Color(0xFF666666),
+                          brightRed: Color(0xFFF14C4C),
+                          brightGreen: Color(0xFF23D18B),
+                          brightYellow: Color(0xFFF5F543),
+                          brightBlue: Color(0xFF3B8EEA),
+                          brightMagenta: Color(0xFFD670D6),
+                          brightCyan: Color(0xFF29B8DB),
+                          brightWhite: Color(0xFFFFFFFF),
+                          searchHitBackground: Color(0xFFFFFF00),
+                          searchHitBackgroundCurrent: Color(0xFFFF8C00),
+                          searchHitForeground: Color(0xFF000000),
+                        ),
+                              autofocus: false, // Disabled - using TextField below
+                              textScaler: TextScaler.noScaling,
+                              padding: const EdgeInsets.all(8),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-
-                    // Terminal display using xterm - read-only display (input via hidden TextField)
-                    Expanded(
-                      child: IgnorePointer(
-                        child: TerminalView(
-                          terminal,
-                          theme: const TerminalTheme(
-                            cursor: Color(0xFFFFFFFF),
-                            selection: Color(0xFF264F78),
-                            foreground: Color(0xFFD4D4D4),
-                            background: Color(0xFF1E1E1E),
-                            black: Color(0xFF000000),
-                            red: Color(0xFFCD3131),
-                            green: Color(0xFF0DBC79),
-                            yellow: Color(0xFFE5E510),
-                            blue: Color(0xFF2472C8),
-                            magenta: Color(0xFFBC3FBC),
-                            cyan: Color(0xFF11A8CD),
-                            white: Color(0xFFE5E5E5),
-                            brightBlack: Color(0xFF666666),
-                            brightRed: Color(0xFFF14C4C),
-                            brightGreen: Color(0xFF23D18B),
-                            brightYellow: Color(0xFFF5F543),
-                            brightBlue: Color(0xFF3B8EEA),
-                            brightMagenta: Color(0xFFD670D6),
-                            brightCyan: Color(0xFF29B8DB),
-                            brightWhite: Color(0xFFFFFFFF),
-                            searchHitBackground: Color(0xFFFFFF00),
-                            searchHitBackgroundCurrent: Color(0xFFFF8C00),
-                            searchHitForeground: Color(0xFF000000),
-                          ),
-                          autofocus: false, // Disabled - using hidden TextField
-                          textScaler: TextScaler.noScaling,
-                          padding: const EdgeInsets.all(8),
                         ),
-                      ),
+                        // Gesture overlay to detect scroll
+                        Listener(
+                          behavior: HitTestBehavior.translucent,
+                          onPointerMove: (event) {
+                            // Only dismiss keyboard if it's currently visible
+                            if (event.delta.dy.abs() > 3 && textFieldFocus.hasFocus) {
+                              print('📜 Scroll detected (dy: ${event.delta.dy}) - dismissing keyboard');
+                              FocusScope.of(context).unfocus();
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             // TextField to capture ALL keyboard input including backspace
@@ -290,9 +336,15 @@ class TerminalScreen extends HookConsumerWidget {
                   autofocus: true,
                   autocorrect: false,
                   enableSuggestions: false,
+                  enableInteractiveSelection: true, // Enable copy/paste
                   keyboardType: TextInputType.text,
                   maxLines: 1,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  scrollPhysics: const BouncingScrollPhysics(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontFamily: 'monospace',
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Type commands here...',
                     hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
@@ -308,16 +360,23 @@ class TerminalScreen extends HookConsumerWidget {
                   ),
                   onChanged: (newValue) {
                     final oldValue = lastTextValue.value;
+                    print('✏️  TextField changed: "$oldValue" → "$newValue"');
 
                     if (newValue.length < oldValue.length) {
                       // Backspace detected
                       final numDeleted = oldValue.length - newValue.length;
+                      print('⌫ Backspace! Deleted $numDeleted character(s)');
                       for (int i = 0; i < numDeleted; i++) {
                         sendToTerminal('\x7f');
                       }
                     } else if (newValue.length > oldValue.length) {
-                      // Characters added
+                      // Characters added (typed or pasted)
                       final added = newValue.substring(oldValue.length);
+                      if (added.length > 1) {
+                        print('📋 Paste detected: "$added" (${added.length} chars)');
+                      } else {
+                        print('➕ Character typed: "$added"');
+                      }
                       for (int i = 0; i < added.length; i++) {
                         sendToTerminal(added[i]);
                       }
@@ -326,6 +385,7 @@ class TerminalScreen extends HookConsumerWidget {
                     lastTextValue.value = newValue;
                   },
                   onSubmitted: (value) {
+                    print('↩️  Enter pressed with value: "$value"');
                     sendToTerminal('\n');
                     textFieldController.clear();
                     lastTextValue.value = '';
@@ -334,8 +394,7 @@ class TerminalScreen extends HookConsumerWidget {
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

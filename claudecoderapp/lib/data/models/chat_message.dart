@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'chat_message.freezed.dart';
@@ -14,6 +16,7 @@ class ChatMessage with _$ChatMessage {
     @Default(false) bool isStreaming,
     bool? isToolUse,
     String? toolName,
+    @Default([]) List<AttachedImage> images,
   }) = _ChatMessage;
 
   // Custom fromJson that mirrors web client's convertSessionMessages logic
@@ -26,6 +29,7 @@ class ChatMessage with _$ChatMessage {
         String content = '';
         bool isToolUse = false;
         String? toolName;
+        String? toolInput;
 
         // Extract content - handle both string and array formats (like web client)
         final messageContent = message['content'];
@@ -43,11 +47,25 @@ class ChatMessage with _$ChatMessage {
               } else if (part['type'] == 'tool_use') {
                 isToolUse = true;
                 toolName = part['name']?.toString();
+                // Format tool use like we do in _handleClaudeResponse
+                final toolContent = '🔧 **Using Tool: ${part['name']}**\n\n```json\n${jsonEncode(part['input'] ?? {})}\n```';
+                textParts.add(toolContent);
+              } else if (part['type'] == 'tool_result') {
+                // Format tool result
+                final toolResultContent = part['content']?.toString() ?? '';
+                final isError = part['is_error'] == true;
+                final toolId = part['tool_use_id'] ?? 'unknown';
+
+                final resultHeader = isError
+                    ? '❌ **Tool Result (Error)** - ID: $toolId'
+                    : '✅ **Tool Result** - ID: $toolId';
+
+                textParts.add('$resultHeader\n\n```\n$toolResultContent\n```');
               }
             }
           }
           // Join with newlines like web client (line 1716 in ChatInterface.jsx)
-          content = textParts.join('\n');
+          content = textParts.join('\n\n');
         }
 
         return ChatMessage(
@@ -88,6 +106,18 @@ class ChatMessage with _$ChatMessage {
       );
     }
   }
+}
+
+@freezed
+class AttachedImage with _$AttachedImage {
+  const factory AttachedImage({
+    required String name,
+    required String data, // Base64 encoded image data
+    required String mimeType,
+  }) = _AttachedImage;
+
+  factory AttachedImage.fromJson(Map<String, dynamic> json) =>
+      _$AttachedImageFromJson(json);
 }
 
 @freezed
