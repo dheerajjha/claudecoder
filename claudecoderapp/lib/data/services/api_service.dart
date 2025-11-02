@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:logger/logger.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../models/chat_message.dart';
@@ -13,7 +12,6 @@ import 'storage_service.dart';
 class ApiService {
   final Dio _dio;
   final StorageService _storage;
-  final Logger _logger = Logger();
 
   ApiService(this._storage, {String? baseUrl})
     : _dio = Dio(

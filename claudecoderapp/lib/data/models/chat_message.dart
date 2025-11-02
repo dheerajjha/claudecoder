@@ -29,7 +29,6 @@ class ChatMessage with _$ChatMessage {
         String content = '';
         bool isToolUse = false;
         String? toolName;
-        String? toolInput;
 
         // Extract content - handle both string and array formats (like web client)
         final messageContent = message['content'];

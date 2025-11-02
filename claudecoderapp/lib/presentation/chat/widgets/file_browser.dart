@@ -5,7 +5,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../core/providers/providers.dart';
 import '../../../data/models/file_item.dart';
-import '../../../shared/controllers/file_tree_controller.dart';
 import '../../../shared/widgets/file_tree_view.dart';
 import '../../file_viewer/file_viewer_screen.dart';
 
