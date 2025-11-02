@@ -83,6 +83,7 @@ jobs:
           fi
 
       # ===== Cache CocoaPods =====
+      # Note: CocoaPods is already installed by flutter build ios above
       - name: 💾 Cache CocoaPods
         uses: actions/cache@v4
         with:
@@ -92,11 +93,6 @@ jobs:
           key: ${{ runner.os }}-pods-${{ hashFiles('claudecoderapp/ios/Podfile.lock') }}
           restore-keys: |
             ${{ runner.os }}-pods-
-
-      # ===== Install CocoaPods Dependencies =====
-      - name: 📦 Install CocoaPods dependencies
-        run: |
-          cd claudecoderapp/ios && pod install --repo-update
 
       # ===== Cache Xcode Derived Data =====
       - name: 💾 Cache Xcode Derived Data
