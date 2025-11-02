@@ -256,7 +256,7 @@ CLAUDE.md
 *.bak
 *.swiftpm/
 .atom/
-core
+/core
 crash.log
 
 # Certificates & Keys (NEVER commit these!)
