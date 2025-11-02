@@ -54,6 +54,14 @@ jobs:
             fi
           fi
 
+      # ===== Pre-build Flutter iOS App =====
+      - name: 🔨 Pre-build Flutter iOS (generates frameworks)
+        run: |
+          cd claudecoderapp
+          echo "Building Flutter iOS app to generate frameworks..."
+          flutter build ios --release --no-codesign
+          echo "Flutter build completed successfully!"
+
       # ===== Setup Ruby Environment =====
       - name: 💎 Set up Ruby
         uses: ruby/setup-ruby@v1
